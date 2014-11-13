@@ -29,6 +29,7 @@ proguard/
 *.slo
 *.lo
 *.o
+*.o.d
 *.obj
 
 # Precompiled Headers
