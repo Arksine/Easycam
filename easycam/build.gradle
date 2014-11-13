@@ -1,0 +1,35 @@
+apply plugin: 'com.android.application'
+
+android {
+    signingConfigs {
+        easycam {
+            keyAlias 'easycam'
+            keyPassword '2calcull8int'
+            storeFile file('D:/Development/Android/app key signatures/easycam.jks')
+            storePassword '2calcul8int'
+        }
+    }
+    compileSdkVersion 19
+    buildToolsVersion "20.0.0"
+    defaultConfig {
+        applicationId "com.arksine.easycam"
+        minSdkVersion 19
+        targetSdkVersion 19
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            runProguard false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    productFlavors {
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile project(':easycam-library')
+    compile 'com.android.support:support-v4:21.0.0'
+}

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="@string/pref_device_settings_title"
+        android:key="pref_key_device_settings">
+        <CheckBoxPreference
+            android:key="pref_key_manual_set_dev_loc"
+            android:title="@string/pref_manual_set_dev_loc"
+            android:summary="@string/pref_manual_set_dev_loc_summ"
+            android:defaultValue="false" />
+        <EditTextPreference
+            android:dependency="pref_key_manual_set_dev_loc"
+            android:key="pref_select_dev_loc"
+            android:title="@string/pref_select_dev_loc"
+            android:summary="@string/pref_select_dev_loc_summ"
+            android:defaultValue="@string/pref_select_dev_loc_default"/>
+        <CheckBoxPreference
+            android:key="pref_key_manual_set_type"
+            android:title="@string/pref_manual_set_type"
+            android:summary="@string/pref_manual_set_type_summ"
+            android:defaultValue="false" />
+        <ListPreference
+            android:dependency="pref_key_manual_set_type"
+            android:key="pref_select_easycap_type"
+            android:title="@string/pref_easycap_type"
+            android:dialogTitle="@string/pref_easycap_type"
+            android:entries="@array/pref_select_easycap_entries"
+            android:entryValues="@array/pref_select_easycap_values"
+            android:defaultValue="@string/pref_select_easycap_default" />
+        <ListPreference
+            android:key="pref_select_standard"
+            android:title="@string/pref_select_standard"
+            android:dialogTitle="@string/pref_select_standard"
+            android:entries="@array/pref_select_standard_entries"
+            android:entryValues="@array/pref_select_standard_values"
+            android:defaultValue="@string/pref_select_standard_default" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/pref_layout_settings_title"
+        android:key="pref_key_layout_settings">
+        <CheckBoxPreference
+            android:key="pref_key_layout_fullscreen"
+            android:title="@string/pref_layout_fullscreen"
+            android:summary="@string/pref_layout_fullscreen_summ"
+            android:defaultValue="true" />
+        <CheckBoxPreference
+            android:key="pref_key_layout_leanback"
+            android:title="@string/pref_layout_leanback"
+            android:summary="@string/pref_layout_leanback_summ"
+            android:defaultValue="true" />
+        <CheckBoxPreference
+            android:key="pref_key_layout_toasts"
+            android:title="@string/pref_layout_toasts"
+            android:summary="@string/pref_layout_toasts_summ"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -1,0 +1,2 @@
+include ':easycam'
+include ':easycam-library'
