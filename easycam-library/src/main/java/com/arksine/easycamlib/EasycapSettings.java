@@ -58,7 +58,7 @@ public class EasycapSettings {
 			}
 		}
 		else {
-			String prefDevice = NativeEasycam.autoDetectDev(devName);
+			String prefDevice = NativeEasyCapture.autoDetectDev(devName);
 						
 			if(prefDevice.equals("UTV007")) {
 				devType = Pair.create("UTV007", 0);

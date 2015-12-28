@@ -19,7 +19,7 @@ SurfaceHolder.Callback, Runnable {
 
 	private static String TAG = "EasycamView";
 	
-	private Easycam capDevice;
+	private EasyCapture capDevice;
 	
 	private Thread mThread = null;
 
@@ -99,7 +99,7 @@ SurfaceHolder.Callback, Runnable {
     	   }
        }
        
-       capDevice = new NativeEasycam(sharedPrefs, appContext);
+       capDevice = new NativeEasyCapture(sharedPrefs, appContext);
        if(!capDevice.isDeviceConnected())
        {
            CharSequence text = "Error connecting to device";

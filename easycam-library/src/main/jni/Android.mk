@@ -9,8 +9,8 @@ include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE    := easycam
-LOCAL_SRC_FILES := easycam.cpp VideoDevice.cpp util.cpp
+LOCAL_MODULE    := easycapture
+LOCAL_SRC_FILES := easycapture.cpp VideoDevice.cpp util.cpp
 
 
 # Generate a module that links to /system/lib/liblog.so at load time to enable logging

@@ -2,42 +2,41 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 apply plugin: 'com.android.library'
 
+
+
 android {
-    compileSdkVersion 19
-    buildToolsVersion '20.0.0'
+    compileSdkVersion 23
+    buildToolsVersion '23.0.2'
 
     defaultConfig {
-        applicationId 'com.arksine.easycamlib'
         minSdkVersion 19
-        targetSdkVersion 19
-    }
+        targetSdkVersion 23
 
-    buildTypes {
-        release {
-            runProguard false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-        }
     }
-
     sourceSets.main {
         jniLibs.srcDir 'src/main/libs'
         jni.srcDirs = [] //disable automatic ndk-build call
     }
 
+
+
+    // call regular ndk-build(.cmd) script from app directory
+    task ndkBuild(type: Exec) {
+        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            commandLine 'ndk-build.cmd', '-C', file('src/main').absolutePath
+        } else {
+            commandLine 'ndk-build', '-C', file('src/main').absolutePath
+        }
+    }
+
+    tasks.withType(JavaCompile) {
+        compileTask -> compileTask.dependsOn ndkBuild
+    }
+
+
 }
 
 dependencies {
-    compile 'com.android.support:support-annotations:21.0.0'
+    compile 'com.android.support:support-annotations:23.1.1'
 }
 
-task ndkBuild(type: Exec) {
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        commandLine 'ndk-build.cmd', '-C', file('src/main').absolutePath
-    } else {
-        commandLine 'ndk-build', '-C', file('src/main').absolutePath
-    }
-}
-
-tasks.withType(JavaCompile) {
-    compileTask -> compileTask.dependsOn ndkBuild
-}
