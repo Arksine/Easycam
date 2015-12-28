@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
-import com.arksine.easycamlib.EasycamView;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.view.SurfaceHolder;

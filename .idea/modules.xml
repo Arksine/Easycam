@@ -4,7 +4,6 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Easycam.iml" filepath="$PROJECT_DIR$/Easycam.iml" />
       <module fileurl="file://$PROJECT_DIR$/easycam/easycam.iml" filepath="$PROJECT_DIR$/easycam/easycam.iml" />
-      <module fileurl="file://$PROJECT_DIR$/easycam-library/easycam-library.iml" filepath="$PROJECT_DIR$/easycam-library/easycam-library.iml" />
     </modules>
   </component>
 </project>

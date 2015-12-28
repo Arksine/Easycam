@@ -47,7 +47,7 @@
     <string name="pref_layout_leanback">Immersive mode</string>
     <string name="pref_layout_leanback_summ">Enable to hide action/navigation bars</string>
     <string name="pref_layout_toasts">Enable Toasts</string>
-    <string name="pref_layout_toasts_summ">Disable if remove info popups</string>
+    <string name="pref_layout_toasts_summ">Disable to remove info popups</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="dialog_choose_standard">Choose Region Standard</string>
     <string name="title_activity_first_run">FirstRunActivity</string>

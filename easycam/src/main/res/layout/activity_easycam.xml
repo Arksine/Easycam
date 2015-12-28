@@ -7,7 +7,7 @@
     <view
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        class="com.arksine.easycamlib.EasycamView"
+        class="com.arksine.easycam.EasycamView"
         android:id="@+id/camview"
         android:layout_gravity="center" />
 </FrameLayout>

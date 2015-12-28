@@ -11,14 +11,12 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/easycam" />
-            <option value="$PROJECT_DIR$/easycam-library" />
           </set>
         </option>
         <option name="myModules">
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/easycam" />
-            <option value="$PROJECT_DIR$/easycam-library" />
           </set>
         </option>
       </GradleProjectSettings>
