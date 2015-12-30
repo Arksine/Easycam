@@ -1,12 +1,15 @@
 #include "easycapture.h"
 #include "util.h"
+#include "VideoDevice.h"
 #include <cstring>
 
+jbyteArray capBuffer;
+
 JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JNIEnv* jenv, jobject thisObj,
-		jobject rgbBuf, jstring deviceName, jint width, jint height, jint devType, jint regionStd, jint numBufs)
+		jstring deviceName, jint width, jint height, jint devType, jint regionStd, jint numBufs)
 {
+
 	char* devName = (char*)jenv->GetStringUTFChars(deviceName, 0);
-	unsigned char* rgbBuffer = (unsigned char*)jenv->GetDirectBufferAddress(rgbBuf);
 
 	DeviceSettings dSets;
 
@@ -21,7 +24,7 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 
 
 	if (vDevice == nullptr)
-		vDevice = new VideoDevice(rgbBuffer, dSets);
+		vDevice = new VideoDevice(dSets);
 
 	int result = vDevice->open_device();
 	jenv->ReleaseStringUTFChars(deviceName, devName);
@@ -34,6 +37,9 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 		return result;
 	}
 
+    // allocate the buffer to send back to Java
+    capBuffer = jenv->NewByteArray(vDevice->get_buffer_length());
+
 	result = vDevice->start_capture();
 	if(result != SUCCESS_LOCAL) {
 	        delete vDevice;
@@ -44,14 +50,17 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	return result;
 
 }
-JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(JNIEnv* jenv, jobject thisObj,
-		jint bmpWidth, jint bmpHeight)
+JNIEXPORT jbyteArray JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(JNIEnv* jenv, jobject thisObj)
 {
+	buffer* curBuf = NULL;
+
 	if (vDevice) {
-		vDevice->process_capture();
+		curBuf = vDevice->process_capture();
 	}
 
+	jenv->SetByteArrayRegion(capBuffer, 0, curBuf->length, (jbyte*)(curBuf->start));
 
+    return  capBuffer;
 }
 JNIEXPORT jboolean JNICALL Java_com_arksine_easycam_NativeEasyCapture_isDeviceAttached(JNIEnv* jenv, jobject thisObj)
 {
@@ -68,6 +77,7 @@ JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNI
 
 	delete vDevice;
 	vDevice = nullptr;
+    jenv->DeleteLocalRef(capBuffer);
 }
 
 JNIEXPORT jstring JNICALL Java_com_arksine_easycam_NativeEasyCapture_detectDevice(JNIEnv* jenv, jobject thisObj, jstring deviceName)

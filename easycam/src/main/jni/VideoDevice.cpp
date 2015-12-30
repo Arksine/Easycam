@@ -7,7 +7,6 @@
 
 #include "VideoDevice.h"
 #include "util.h"
-#include "libyuv.h"
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -18,11 +17,16 @@
 #include <malloc.h>
 #include <cassert>
 
+/* TODO: Use renderscript to do color conversion in place of libyuv.
+ * The best way to accomplish this is likely to copy the v4l frame buffer into an Allocation,
+ * and pass that allocation back to Java.  The other option is to do the complete conversion
+ * in C++/JNI, and pass the result back to Java.*/
+
 // Prototypes for helper functions
 int v4l2_open(const char* dev_name);
 int v4l2_close(int fd);
 
-VideoDevice::VideoDevice (unsigned char* rgbBuf, DeviceSettings devSets) {
+VideoDevice::VideoDevice (DeviceSettings devSets) {
 
 	device_sets = devSets;
 
@@ -30,42 +34,31 @@ VideoDevice::VideoDevice (unsigned char* rgbBuf, DeviceSettings devSets) {
 	switch(devSets.device_type) {
 	case UTV007:
 		device_sets.pixel_format =  V4L2_PIX_FMT_YUYV;
-		device_sets.ConvertToRGB565 = &VideoDevice::convert_from_yuy2;
 		break;
 	case EMPIA:
 		device_sets.pixel_format =  V4L2_PIX_FMT_YUYV;
-		device_sets.ConvertToRGB565 = &VideoDevice::convert_from_yuy2;
 		break;
 	case STK1160:
 		device_sets.pixel_format =  V4L2_PIX_FMT_UYVY;
-		device_sets.ConvertToRGB565 = &VideoDevice::convert_from_uyvy;
 		break;
 	case SOMAGIC:
 		device_sets.pixel_format =  V4L2_PIX_FMT_UYVY;
-		device_sets.ConvertToRGB565 = &VideoDevice::convert_from_uyvy;
 		break;
 	default:
 		device_sets.pixel_format =  V4L2_PIX_FMT_YUYV;
-		device_sets.ConvertToRGB565 = &VideoDevice::convert_from_yuy2;
 	}
 
 	buffer_count = 0;
 	frame_buffers = NULL;
-	final_buffer = rgbBuf;
+
 
 	file_descriptor = -1;
 
-	twoByteStride = 2 * devSets.frame_width;
-	fourByteStride = 4 * devSets.frame_width;
+    curBufferIndex = 0;
 
 	int area = devSets.frame_width * devSets.frame_height;
 
-	if (device_sets.device_type == EMPIA)
-	{
-		rgb_buffer == nullptr;
-	}
-	else
-		rgb_buffer = (unsigned char*)malloc(sizeof(unsigned char*)*area);
+
 }
 
 VideoDevice::~VideoDevice() {
@@ -153,10 +146,6 @@ int VideoDevice::init_mmap() {
  * checks to make sure it has the streaming I/O interface. Configures the device
  * to crop the image to the given dimensions and initailizes a memory mapped
  * frame buffer.
- *
- * fd - a valid file descriptor to the device.
- * width - the desired width for the output images.
- * height - the desired height for the output images.
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
@@ -393,13 +382,9 @@ int VideoDevice::read_frame() {
 
     assert(buf.index < buffer_count);
 
-    if(!rgb_buffer) {
-		LOGE("Unable to load frame, buffer not initialized");
-		return ERROR_LOCAL;
-    }
 
     // convert and copy the buffer for rendering
-    (this->*device_sets.ConvertToRGB565)((int)buf.index);
+    curBufferIndex = (int)(buf.index);
 
     if(-1 == xioctl(file_descriptor, VIDIOC_QBUF, &buf)) {
     	return errnoexit("VIDIOC_QBUF");
@@ -427,16 +412,13 @@ int VideoDevice::stop_capture() {
  *
  * If the descriptor is not valid, no frame will be read.
  *
- * fd - a valid file descriptor pointing to the camera device.
- * frame_buffers - memory mapped buffers that contain the image from the device.
- * width - the width of the image.
- * height - the height of the image.
- * rgb_buffer - output buffer for RGB data.
- * y_buffer - output buffer for alpha (Y) data.
+ * Returns a pointer to the latest buffer read into memory from the device
+ *
  */
-void VideoDevice::process_capture() {
+buffer* VideoDevice::process_capture() {
+
     if(file_descriptor == -1) {
-        return;
+        return NULL;
     }
 
     for(;;) {
@@ -461,9 +443,11 @@ void VideoDevice::process_capture() {
         }
 
         if(read_frame() == 1) {
-            break;
+            return &frame_buffers[curBufferIndex];
         }
     }
+
+    return NULL;
 }
 
 /* Stop capturing, uninitialize the device and free all memory. */
@@ -472,9 +456,6 @@ void VideoDevice::stop_device() {
     uninit_device();
     close_device();
 
-    if(rgb_buffer) {
-            free(rgb_buffer);
-        }
 
 }
 
@@ -519,6 +500,8 @@ DeviceType VideoDevice::detect_device(const char* dev_name) {
 
 }
 
+/******** Depricated LibYUV conversion functions**************************************************
+ * TODO:  Remove this block at a later time
 void VideoDevice::convert_from_yuy2(int index) {
 
 	libyuv::YUY2ToARGB((uint8*)(frame_buffers[index].start), twoByteStride,
@@ -538,15 +521,15 @@ void VideoDevice::convert_from_uyvy(int index) {
 }
 void VideoDevice::convert_from_rgb565(int index) {
 
-	/*
-	 * TODO:  Check the .length variable, make sure it measures in bytes
-	 */
+	//
+	// TODO:  Check the .length variable, make sure it measures in bytes
+	//
 	memcpy(final_buffer, frame_buffers[index].start, frame_buffers[index].length);
 }
+*************************************************************************/
 
 
 // Helper functions to open and close devices, to keep from repeating code
-
 int v4l2_open(const char* dev_name) {
 
 	struct stat st;

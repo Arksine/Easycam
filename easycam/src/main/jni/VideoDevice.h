@@ -36,7 +36,7 @@ typedef struct {
 	__u32 pixel_format;
 
 	// Pointer to the correct YUV call to convert to RGB
-	void (VideoDevice::* ConvertToRGB565)(int);
+	//void (VideoDevice::* ConvertToARGB)(int);    // Dont need this unless I decide to do processing in JNI
 } DeviceSettings;
 
 /* Class: Video Device
@@ -45,7 +45,7 @@ typedef struct {
  */
 class VideoDevice {
 public:
-	VideoDevice(unsigned char* rgbBuf, DeviceSettings devSets);
+	VideoDevice(DeviceSettings devSets);
 	virtual ~VideoDevice();
 
 	/* The below functions control a capture device.  A note about how they work:
@@ -59,7 +59,7 @@ public:
 	int init_device();   // initialize buffers
 	int start_capture(); // enqueue buffers and turn stream on
 	int stop_capture();  // turn stream off
-	void process_capture();   // dequeue a frame and bring it to user space
+	buffer* process_capture();   // dequeue a frame and bring it to user space
 	void stop_device();  // shut down device
 
 	// static function to detect a device
@@ -72,41 +72,29 @@ public:
 			return true;
 	}
 
+	int get_buffer_length() {
+		if (frame_buffers)
+			return frame_buffers[0].length;
+		else
+			return 0;
+	}
+
 
 private:
 	unsigned int buffer_count;  // actual number of buffers allocated
 
 	buffer* frame_buffers;
 
-
-	/* Android expects an ARGB8888 bitmap to be stored as ABGR (RGBA little endian) in direct memory.
-	 * As a result we first convert YUY2 to ARGB with libyuv, read into the rgb_buffer.
-	 * Then we convert ARGB to RGB565, read into the final_buffer which is a pointer
-	 * to a ByteBuffer.
-	 *
-	 * Converting from ARGB to ABGR is too slow, with the likely culprit being
-	 * in the rendering stage.
-	 *
-	 * I may consider using OpenCV to replace libyuv in the future,
-	 * or just going with an OpenGL solution.
-	 */
-	unsigned char* rgb_buffer;
-	unsigned char* final_buffer;
-
 	int file_descriptor;
 	DeviceSettings device_sets;
 
-	int twoByteStride;
-	int fourByteStride;
+	int curBufferIndex;  // the index for the last buffer read into memory
 
 	int uninit_device();
 	int close_device();
 	int init_mmap();
 	int read_frame();
 
-	void convert_from_yuy2(int index);
-	void convert_from_uyvy(int index);
-	void convert_from_rgb565(int index);
 };
 
 #endif /* VIDEODEVICE_H_ */

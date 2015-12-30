@@ -16,14 +16,14 @@ public class NativeEasyCapture implements EasyCapture {
     private EasycapSettings deviceSets;
     boolean deviceConnected = false;
 
-    private ByteBuffer rgbBuffer;
     private Bitmap mBitmap;
     private int mWidth;
     private int mHeight;
+    byte[] capBuffer;
     
-    private native int startDevice(ByteBuffer rgbBuf, String deviceName, int width, int height, 
+    private native int startDevice(String cacheDir, int width, int height,
     		int devType, int regionStd, int numBufs);
-    private native void getNextFrame();
+    private native byte[] getNextFrame();
     private native boolean isDeviceAttached();
     private native void stopDevice();
     private static native String detectDevice(String deviceName);
@@ -38,11 +38,10 @@ public class NativeEasyCapture implements EasyCapture {
     	deviceSets = new EasycapSettings(sharedPrefs);
         mWidth = deviceSets.frameWidth;
         mHeight = deviceSets.frameHeight;
-        mBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.RGB_565);
+        mBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.ARGB_8888);
         
         // allocate an array of bytes to hold the entire size of the bitmap
         // at 32 bits per pixel
-        rgbBuffer = ByteBuffer.allocateDirect(mWidth * mHeight * 2);
 
         boolean useToasts = sharedPrefs.getBoolean("pref_key_layout_toasts", true);
         if (useToasts) {
@@ -74,7 +73,7 @@ public class NativeEasyCapture implements EasyCapture {
 
         if(deviceReady) {
             Log.i(TAG, "Preparing camera with device name " + deviceSets.devName);
-            if(-1 == startDevice(rgbBuffer, deviceSets.devName, deviceSets.frameWidth,
+            if(-1 == startDevice(deviceSets.devName, deviceSets.frameWidth,
                     deviceSets.frameHeight, deviceSets.devType.second,
                     deviceSets.devStandard.second, deviceSets.numBuffers)) {
 
@@ -89,9 +88,10 @@ public class NativeEasyCapture implements EasyCapture {
     }
 
     public Bitmap getFrame() {
-        getNextFrame();
-        mBitmap.copyPixelsFromBuffer(rgbBuffer);
-        rgbBuffer.clear();
+        capBuffer = getNextFrame();
+
+        //TODO:  read capbuffer into an allocation and perform renderscript conversion
+
         return mBitmap;
     }
 
