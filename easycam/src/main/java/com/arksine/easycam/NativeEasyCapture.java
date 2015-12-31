@@ -1,7 +1,6 @@
 package com.arksine.easycam;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -16,12 +15,9 @@ public class NativeEasyCapture implements EasyCapture {
     private EasycapSettings deviceSets;
     boolean deviceConnected = false;
 
-    private Bitmap mBitmap;
-    private int mWidth;
-    private int mHeight;
-    byte[] capBuffer;
+    FrameProcessor mFrameProc;
     
-    private native int startDevice(String cacheDir, int width, int height,
+    private native int startDevice(String deviceName, int width, int height,
     		int devType, int regionStd, int numBufs);
     private native byte[] getNextFrame();
     private native boolean isDeviceAttached();
@@ -36,10 +32,7 @@ public class NativeEasyCapture implements EasyCapture {
     public NativeEasyCapture(SharedPreferences sharedPrefs, Context context) {
     	
     	deviceSets = new EasycapSettings(sharedPrefs);
-        mWidth = deviceSets.frameWidth;
-        mHeight = deviceSets.frameHeight;
-        mBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.ARGB_8888);
-        
+        mFrameProc = new FrameProcessor(context, deviceSets);
         // allocate an array of bytes to hold the entire size of the bitmap
         // at 32 bits per pixel
 
@@ -88,11 +81,8 @@ public class NativeEasyCapture implements EasyCapture {
     }
 
     public Bitmap getFrame() {
-        capBuffer = getNextFrame();
 
-        //TODO:  read capbuffer into an allocation and perform renderscript conversion
-
-        return mBitmap;
+        return mFrameProc.processFrame(getNextFrame());
     }
 
     public void stop() {

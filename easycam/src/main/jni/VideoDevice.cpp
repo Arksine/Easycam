@@ -137,6 +137,8 @@ int VideoDevice::init_mmap() {
         }
     }
 
+    LOGI("Frame Buffer Length (bytes): %i", frame_buffers[0].length);
+
     return SUCCESS_LOCAL;
 }
 
@@ -160,7 +162,7 @@ int VideoDevice::init_device() {
     CLEAR(cap);
     if(-1 == xioctl(file_descriptor, VIDIOC_QUERYCAP, &cap)) {
         if(EINVAL == errno) {
-            LOGE("not a valid V4L2 device");
+
             return ERROR_LOCAL;
         } else {
             return errnoexit("VIDIOC_QUERYCAP");

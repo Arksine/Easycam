@@ -38,7 +38,8 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	}
 
     // allocate the buffer to send back to Java
-    capBuffer = jenv->NewByteArray(vDevice->get_buffer_length());
+    jbyteArray buf = jenv->NewByteArray(vDevice->get_buffer_length());
+	capBuffer = (jbyteArray)jenv->NewGlobalRef(buf);
 
 	result = vDevice->start_capture();
 	if(result != SUCCESS_LOCAL) {
@@ -77,7 +78,7 @@ JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNI
 
 	delete vDevice;
 	vDevice = nullptr;
-    jenv->DeleteLocalRef(capBuffer);
+    jenv->DeleteGlobalRef(capBuffer);
 }
 
 JNIEXPORT jstring JNICALL Java_com_arksine_easycam_NativeEasyCapture_detectDevice(JNIEnv* jenv, jobject thisObj, jstring deviceName)

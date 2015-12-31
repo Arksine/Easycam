@@ -12,7 +12,7 @@ android {
         minSdkVersion 19
         targetSdkVersion 23
         versionCode 1
-        versionName = "1.01"
+        versionName = "1.1"
 
         renderscriptTargetApi 19
         renderscriptSupportModeEnabled true
@@ -20,6 +20,15 @@ android {
 
     productFlavors {
 
+    }
+
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'x86', 'armeabi-v7a'
+            universalApk true
+        }
     }
 
     sourceSets.main {
