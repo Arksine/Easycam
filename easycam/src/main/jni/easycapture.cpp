@@ -57,8 +57,7 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	}
 
 	// instantiate frame renderer only if the video device is successfully initialized
-	fRenderer = new FrameRenderer(jenv, rsPath, vDevice->get_buffer_length(),
-								  dSets.color_format);
+	fRenderer = new FrameRenderer(jenv, rsPath, dSets);
 
 	result = vDevice->start_capture();
 	if(result != SUCCESS_LOCAL) {

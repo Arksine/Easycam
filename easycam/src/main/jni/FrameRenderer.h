@@ -18,8 +18,7 @@ using namespace android::RSC;
  */
 class FrameRenderer {
 public:
-     FrameRenderer(JNIEnv* jenv, jstring rsPath, int bufLength,
-                    PixelFormat pFormat);
+     FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings dSets);
     ~FrameRenderer();
 
     void renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* inBuffer);
@@ -29,7 +28,11 @@ private:
 	//TODO:  include variables for frame width, height, and the ANativeWindow pixel format
 	//       We can set these using ANativeWindow_setBuffersGeometry, which allows us
 	//       to directly render RGB_565, RGBA_8888, and RGBX_8888.  Will need to initialize
-	//       all of them in the constructor.  
+	//       all of them in the constructor.
+
+	int frameWidth;
+	int frameHeight;
+	int32_t framePixelFormat;
 
 	sp<RS> rs;
     sp<Allocation> inputAlloc;

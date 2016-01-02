@@ -5,24 +5,42 @@
 #include "FrameRenderer.h"
 #include "util.h"
 
-FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, int bufLength,
-                             PixelFormat pFormat) {
+FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings dSets) {
+
+	int bufLength;  // number of bytes in buffer, depends on color space
+
+	frameWidth = dSets.frame_width;
+	frameHeight = dSets.frame_height;
+
+	//TODO: include a case ARGB: in switch statement?
 
     // Determine the color space of the input buffer, depending on the device selected
-	switch(pFormat){
+	switch(dSets.color_format){
 		case YUYV:
-			processFrame = &FrameRenderer::processFromYUYV;
+			bufLength = frameWidth*frameHeight*2;
+			framePixelFormat = WINDOW_FORMAT_RGBA_8888;
+	        processFrame = &FrameRenderer::processFromYUYV;
 			initRenderscript(jenv, rsPath, bufLength);
 	        break;
 		case UYVY:
+			bufLength = frameWidth*frameHeight*2;
+	        framePixelFormat = WINDOW_FORMAT_RGBA_8888;
 			processFrame = &FrameRenderer::processFromUYVY;
 	        initRenderscript(jenv, rsPath, bufLength);
 	        break;
-		case RGB565:
+		case RGB565:    // no need to init renderscript here as conversion is not necessary
+			bufLength = frameWidth*frameHeight*2;
+	        framePixelFormat = WINDOW_FORMAT_RGB_565;
 			processFrame = &FrameRenderer::processFromRGB;
-			// no need to init renderscript here as conversion is not necessary
+	        break;
+		case RGBA8888:
+			bufLength = frameWidth*frameHeight*4;
+	        framePixelFormat = WINDOW_FORMAT_RGBA_8888;
+	        processFrame = &FrameRenderer::processFromRGB;
 	        break;
 		default:
+			bufLength = frameWidth*frameHeight*2;
+	        framePixelFormat = WINDOW_FORMAT_RGBA_8888;
 			processFrame = &FrameRenderer::processFromYUYV;
 	        initRenderscript(jenv, rsPath, bufLength);
 	}
@@ -64,6 +82,7 @@ void FrameRenderer::initRenderscript(JNIEnv* jenv, jstring rsPath, int bufLength
 void FrameRenderer::renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* inBuffer) {
 
 	ANativeWindow* rWindow = ANativeWindow_fromSurface(jenv, surface);
+	ANativeWindow_setBuffersGeometry(rWindow, frameWidth, frameHeight, framePixelFormat);
 
 	// Call the function pointer, which is set in the constructor
 	(this->*processFrame)(inBuffer, rWindow);

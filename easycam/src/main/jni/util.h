@@ -23,8 +23,18 @@ typedef struct {
 
 // Enumerations for tracking device info
 enum DeviceType {UTV007, EMPIA, STK1160, SOMAGIC, CUSTOM, NO_DEVICE};
-enum PixelFormat {YUYV, UYVY, RGB565};
+enum PixelFormat {YUYV, UYVY, RGB565, RGBA8888};
 enum VideoStandard {NTSC, PAL};
+
+typedef struct {
+	DeviceType device_type;     // Type of easycap device
+	VideoStandard standard_id;  // Region standard (NTSC/PAL)
+	int frame_width;
+	int frame_height;
+	char* device_name;  		// location of the device file (/dev/videoX)
+	int num_buffers;			// number of buffers to allocate
+	PixelFormat color_format;   // the pixel format of the device
+} DeviceSettings;
 
 int errnoexit(const char *s);
 

@@ -17,19 +17,6 @@ using namespace std;
 
 
 typedef unsigned char uint8;
-class VideoDevice;
-
-typedef struct {
-	DeviceType device_type;     // Type of easycap device
-	VideoStandard standard_id;  // Region standard (NTSC/PAL)
-	int frame_width;
-	int frame_height;
-	char* device_name;  		// location of the device file (/dev/videoX)
-	int num_buffers;			// number of buffers to allocate
-	PixelFormat color_format;   // the pixel format of the device
-
-
-} DeviceSettings;
 
 /* Class: Video Device
  * Encapsulates a V4l2 device, exposing all functionality
@@ -63,14 +50,6 @@ public:
 		else
 			return true;
 	}
-
-	int get_buffer_length() {
-		if (frame_buffers)
-			return frame_buffers[0].length;
-		else
-			return 0;
-	}
-
 
 private:
 	unsigned int buffer_count;  // actual number of buffers allocated
