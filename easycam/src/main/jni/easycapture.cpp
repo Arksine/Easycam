@@ -3,10 +3,11 @@
 #include "VideoDevice.h"
 #include <cstring>
 
-jbyteArray capBuffer;
+
 
 JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JNIEnv* jenv, jobject thisObj,
-		jstring deviceName, jint width, jint height, jint devType, jint regionStd, jint numBufs)
+		jobject javaSurface, jstring rsPath, jstring deviceName, jint width, jint height, jint devType,
+		jint regionStd, jint numBufs)
 {
 
 	char* devName = (char*)jenv->GetStringUTFChars(deviceName, 0);
@@ -21,6 +22,24 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	dSets.device_type = (DeviceType)devType;
 	dSets.standard_id = (VideoStandard)regionStd;
 	dSets.num_buffers = (int)numBufs;
+
+	// TODO: retreive pixel format from Java settings, rather than set it here
+	switch(dSets.device_type) {
+		case UTV007:        //YUYV
+		case EMPIA:         //YUYV
+			dSets.color_format = YUYV;
+			break;
+		case STK1160:       //UYVY
+		case SOMAGIC:       //UYVY
+			dSets.color_format = UYVY;
+			break;
+		case CUSTOM:        //Placeholder for custom format
+			dSets.color_format = RGB565;
+			break;
+		default:            //Generic, assume YUYV
+			dSets.color_format = YUYV;
+			break;
+	}
 
 
 	if (vDevice == nullptr)
@@ -37,31 +56,33 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 		return result;
 	}
 
-    // allocate the buffer to send back to Java
-    jbyteArray buf = jenv->NewByteArray(vDevice->get_buffer_length());
-	capBuffer = (jbyteArray)jenv->NewGlobalRef(buf);
+	// instantiate frame renderer only if the video device is successfully initialized
+	fRenderer = new FrameRenderer(jenv, javaSurface, rsPath, vDevice->get_buffer_length(),
+								  dSets.color_format);
 
 	result = vDevice->start_capture();
 	if(result != SUCCESS_LOCAL) {
-	        delete vDevice;
-	        vDevice = nullptr;
-	        LOGE("Unable to start capture, resetting device");
+		delete vDevice;
+		vDevice = nullptr;
+		delete fRenderer;
+		fRenderer = nullptr;
+		LOGE("Unable to start capture, resetting device");
 	}
 
 	return result;
 
 }
-JNIEXPORT jbyteArray JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(JNIEnv* jenv, jobject thisObj)
+JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(JNIEnv* jenv, jobject thisObj)
 {
-	buffer* curBuf = NULL;
+	CaptureBuffer * curBuf = nullptr;
 
-	if (vDevice) {
+	if (vDevice)
 		curBuf = vDevice->process_capture();
-	}
 
-	jenv->SetByteArrayRegion(capBuffer, 0, curBuf->length, (jbyte*)(curBuf->start));
 
-    return  capBuffer;
+	if (curBuf)
+		fRenderer->renderFrame(curBuf);
+
 }
 JNIEXPORT jboolean JNICALL Java_com_arksine_easycam_NativeEasyCapture_isDeviceAttached(JNIEnv* jenv, jobject thisObj)
 {
@@ -73,12 +94,16 @@ JNIEXPORT jboolean JNICALL Java_com_arksine_easycam_NativeEasyCapture_isDeviceAt
 		return false;
 	}
 }
-JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNIEnv* jenv, jobject thisObj)
-{
+JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNIEnv* jenv, jobject thisObj) {
+	if (vDevice) {
+		delete vDevice;
+		vDevice = nullptr;
+	}
 
-	delete vDevice;
-	vDevice = nullptr;
-    jenv->DeleteGlobalRef(capBuffer);
+	if (fRenderer) {
+		delete fRenderer;
+		fRenderer = nullptr;
+	}
 }
 
 JNIEXPORT jstring JNICALL Java_com_arksine_easycam_NativeEasyCapture_detectDevice(JNIEnv* jenv, jobject thisObj, jstring deviceName)

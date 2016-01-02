@@ -34,8 +34,8 @@ on your tablet's resources, having to deal with deep sleep, etc.
 Building Easycam
 ========
 
-Easycam was built using Android Studio 0.8.14 against Android API 19.  You will need the Android SDK and NDK. Static libraries and headers for libyuv are included in /easycam-library/src/main/thirdparty/libyuv.  As long as you set up your enviroment according to Google's guidelines there should be no issues building Easycam.
+Easycam was built using Android Studio 1.5.1 and targets a minimum of Android API 19, with NDK r10e.
 
 License
 =======
-Copyright (c) 2014 Eric Callahan licensed under the BSD license.
+Copyright (c) 2014-2015 Eric Callahan licensed under the BSD license.

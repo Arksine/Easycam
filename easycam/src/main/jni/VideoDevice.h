@@ -10,16 +10,11 @@
 
 #include <jni.h>
 #include <cstdio>
+#include "util.h"
 
 using namespace std;
 
-typedef struct {
-    void* start;
-    size_t length;
-} buffer;
 
-enum DeviceType {UTV007, EMPIA, STK1160, SOMAGIC, NO_DEVICE};
-enum VideoStandard {NTSC, PAL};
 
 typedef unsigned char uint8;
 class VideoDevice;
@@ -31,12 +26,9 @@ typedef struct {
 	int frame_height;
 	char* device_name;  		// location of the device file (/dev/videoX)
 	int num_buffers;			// number of buffers to allocate
+	PixelFormat color_format;   // the pixel format of the device
 
-	// V4L2 vars that need to be device specific
-	__u32 pixel_format;
 
-	// Pointer to the correct YUV call to convert to RGB
-	//void (VideoDevice::* ConvertToARGB)(int);    // Dont need this unless I decide to do processing in JNI
 } DeviceSettings;
 
 /* Class: Video Device
@@ -59,7 +51,7 @@ public:
 	int init_device();   // initialize buffers
 	int start_capture(); // enqueue buffers and turn stream on
 	int stop_capture();  // turn stream off
-	buffer* process_capture();   // dequeue a frame and bring it to user space
+	CaptureBuffer * process_capture();   // dequeue a frame and bring it to user space
 	void stop_device();  // shut down device
 
 	// static function to detect a device
@@ -83,7 +75,7 @@ public:
 private:
 	unsigned int buffer_count;  // actual number of buffers allocated
 
-	buffer* frame_buffers;
+	CaptureBuffer* frame_buffers;
 
 	int file_descriptor;
 	DeviceSettings device_sets;
@@ -94,6 +86,10 @@ private:
 	int close_device();
 	int init_mmap();
 	int read_frame();
+
+	//v4l2 helper functions
+	static int v4l2_open(const char* dev_name);
+	static int v4l2_close(int fd);
 
 };
 

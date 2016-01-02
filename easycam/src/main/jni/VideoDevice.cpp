@@ -6,7 +6,6 @@
  */
 
 #include "VideoDevice.h"
-#include "util.h"
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -17,41 +16,12 @@
 #include <malloc.h>
 #include <cassert>
 
-/* TODO: Use renderscript to do color conversion in place of libyuv.
- * The best way to accomplish this is likely to copy the v4l frame buffer into an Allocation,
- * and pass that allocation back to Java.  The other option is to do the complete conversion
- * in C++/JNI, and pass the result back to Java.*/
-
-// Prototypes for helper functions
-int v4l2_open(const char* dev_name);
-int v4l2_close(int fd);
-
 VideoDevice::VideoDevice (DeviceSettings devSets) {
 
 	device_sets = devSets;
 
-	// assign V4L2/LIBYUV specific settings
-	switch(devSets.device_type) {
-	case UTV007:
-		device_sets.pixel_format =  V4L2_PIX_FMT_YUYV;
-		break;
-	case EMPIA:
-		device_sets.pixel_format =  V4L2_PIX_FMT_YUYV;
-		break;
-	case STK1160:
-		device_sets.pixel_format =  V4L2_PIX_FMT_UYVY;
-		break;
-	case SOMAGIC:
-		device_sets.pixel_format =  V4L2_PIX_FMT_UYVY;
-		break;
-	default:
-		device_sets.pixel_format =  V4L2_PIX_FMT_YUYV;
-	}
-
 	buffer_count = 0;
-	frame_buffers = NULL;
-
-
+	frame_buffers = nullptr;
 	file_descriptor = -1;
 
     curBufferIndex = 0;
@@ -79,65 +49,6 @@ int VideoDevice::open_device() {
 
 	if (file_descriptor == -1)
 		return ERROR_LOCAL;
-
-    return SUCCESS_LOCAL;
-}
-
-/* Initialize memory mapped buffers for video frames.
- *
- * fd - a valid file descriptor pointing to the camera device.
- *
- * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
- */
-int VideoDevice::init_mmap() {
-    struct v4l2_requestbuffers req;
-    CLEAR(req);
-    req.count = device_sets.num_buffers;
-    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    req.memory = V4L2_MEMORY_MMAP;
-
-    if(-1 == xioctl(file_descriptor, VIDIOC_REQBUFS, &req)) {
-        if(EINVAL == errno) {
-            LOGE("device does not support memory mapping");
-            return ERROR_LOCAL;
-        } else {
-            return errnoexit("VIDIOC_REQBUFS");
-        }
-    }
-
-    if(req.count < 2) {
-        LOGE("Insufficient buffer memory");
-        return ERROR_LOCAL;
-    }
-
-    frame_buffers = (buffer*)calloc(req.count, sizeof(*frame_buffers));
-    if(!frame_buffers) {
-        LOGE("Out of memory");
-        return ERROR_LOCAL;
-    }
-
-    for(buffer_count = 0; buffer_count < req.count; ++buffer_count) {
-        struct v4l2_buffer buf;
-        CLEAR(buf);
-
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_MMAP;
-        buf.index = buffer_count;
-
-        if(-1 == xioctl(file_descriptor, VIDIOC_QUERYBUF, &buf)) {
-            return errnoexit("VIDIOC_QUERYBUF");
-        }
-
-        frame_buffers[buffer_count].length = buf.length;
-        frame_buffers[buffer_count].start = mmap(NULL, buf.length,
-                PROT_READ | PROT_WRITE, MAP_SHARED, file_descriptor, buf.m.offset);
-
-        if(MAP_FAILED == frame_buffers[buffer_count].start) {
-            return errnoexit("mmap");
-        }
-    }
-
-    LOGI("Frame Buffer Length (bytes): %i", frame_buffers[0].length);
 
     return SUCCESS_LOCAL;
 }
@@ -282,7 +193,19 @@ int VideoDevice::init_device() {
     fmt.fmt.pix.width = device_sets.frame_width;
     fmt.fmt.pix.height = device_sets.frame_height;
 
-    fmt.fmt.pix.pixelformat = device_sets.pixel_format;
+    switch(device_sets.color_format){
+        case YUYV:
+            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+            break;
+        case UYVY:
+            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
+            break;
+        case RGB565:
+            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
+            break;
+        default:
+            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+    }
     fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
 
     if(-1 == xioctl(file_descriptor, VIDIOC_S_FMT, &fmt)) {
@@ -293,31 +216,63 @@ int VideoDevice::init_device() {
     return init_mmap();
 }
 
-/* Unmap and free memory-mapped frame buffers from the device.
+/* Initialize memory mapped buffers for video frames.
+ *
+ * fd - a valid file descriptor pointing to the camera device.
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::uninit_device() {
-    for(unsigned int i = 0; i < buffer_count; ++i) {
-        if(-1 == munmap(frame_buffers[i].start, frame_buffers[i].length)) {
-            return errnoexit("munmap");
-        }
-    }
+int VideoDevice::init_mmap() {
+	struct v4l2_requestbuffers req;
+	CLEAR(req);
+	req.count = device_sets.num_buffers;
+	req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	req.memory = V4L2_MEMORY_MMAP;
 
-    free(frame_buffers);
-    return SUCCESS_LOCAL;
-}
+	if(-1 == xioctl(file_descriptor, VIDIOC_REQBUFS, &req)) {
+		if(EINVAL == errno) {
+			LOGE("device does not support memory mapping");
+			return ERROR_LOCAL;
+		} else {
+			return errnoexit("VIDIOC_REQBUFS");
+		}
+	}
 
-/* Close a file descriptor.
- *
- * fd - a pointer to the descriptor to close, which will be set to -1 on success
- *      or fail.
- *
- * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
- */
-int VideoDevice::close_device() {
+	if(req.count < 2) {
+		LOGE("Insufficient buffer memory");
+		return ERROR_LOCAL;
+	}
 
-    return v4l2_close(file_descriptor);
+	frame_buffers = (CaptureBuffer *)calloc(req.count, sizeof(*frame_buffers));
+	if(!frame_buffers) {
+		LOGE("Out of memory");
+		return ERROR_LOCAL;
+	}
+
+	for(buffer_count = 0; buffer_count < req.count; ++buffer_count) {
+		struct v4l2_buffer buf;
+		CLEAR(buf);
+
+		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		buf.memory = V4L2_MEMORY_MMAP;
+		buf.index = buffer_count;
+
+		if(-1 == xioctl(file_descriptor, VIDIOC_QUERYBUF, &buf)) {
+			return errnoexit("VIDIOC_QUERYBUF");
+		}
+
+		frame_buffers[buffer_count].length = buf.length;
+		frame_buffers[buffer_count].start = mmap(NULL, buf.length,
+		                                         PROT_READ | PROT_WRITE, MAP_SHARED, file_descriptor, buf.m.offset);
+
+		if(MAP_FAILED == frame_buffers[buffer_count].start) {
+			return errnoexit("mmap");
+		}
+	}
+
+	LOGI("Frame Buffer Length (bytes): %i", frame_buffers[0].length);
+
+	return SUCCESS_LOCAL;
 }
 
 /* Begins capturing video frames from a previously initialized device.
@@ -352,17 +307,51 @@ int VideoDevice::start_capture() {
     return SUCCESS_LOCAL;
 }
 
+/* Request a frame of video from the device to be output into the rgb
+ * and y buffers.
+ *
+ * If the descriptor is not valid, no frame will be read.
+ *
+ * Returns a pointer to the latest buffer read into memory from the device
+ *
+ */
+CaptureBuffer * VideoDevice::process_capture() {
+
+	if(file_descriptor == -1) {
+		return NULL;
+	}
+
+	for(;;) {
+		fd_set fds;
+		FD_ZERO(&fds);
+		FD_SET(file_descriptor, &fds);
+
+		struct timeval tv;
+		tv.tv_sec = 2;
+		tv.tv_usec = 0;
+
+		int result = select(file_descriptor + 1, &fds, NULL, NULL, &tv);
+		if(-1 == result) {
+			if(EINTR == errno) {
+				continue;
+			}
+			errnoexit("select");
+		} else if(0 == result) {
+			LOGE("select timeout, likely can't process chosen TV standard");
+			sleep(1);
+			break;
+		}
+
+		if(read_frame() == 1) {
+			return &frame_buffers[curBufferIndex];
+		}
+	}
+
+	return NULL;
+}
+
 /* Read a single frame of video from the device into a buffer.
  *
- * The resulting image is stored in RGBA format across two buffers, rgb_buffer
- * and y_buffer.
- *
- * fd - a valid file descriptor pointing to the camera device.
- * frame_buffers - memory mapped buffers that contain the image from the device.
- * width - the width of the image.
- * height - the height of the image.
- * rgb_buffer - output buffer for RGB data.
- * y_buffer - output buffer for alpha (Y) data.
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
@@ -395,6 +384,13 @@ int VideoDevice::read_frame() {
     return 1;
 }
 
+/* Stop capturing, uninitialize the device and free all memory. */
+void VideoDevice::stop_device() {
+	stop_capture();
+	uninit_device();
+	close_device();
+
+}
 
 /* Unconfigure the video device for capturing.
  *
@@ -409,58 +405,38 @@ int VideoDevice::stop_capture() {
     return SUCCESS_LOCAL;
 }
 
-/* Request a frame of video from the device to be output into the rgb
- * and y buffers.
+/* Unmap and free memory-mapped frame buffers from the device.
  *
- * If the descriptor is not valid, no frame will be read.
- *
- * Returns a pointer to the latest buffer read into memory from the device
- *
+ * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-buffer* VideoDevice::process_capture() {
+int VideoDevice::uninit_device() {
+	for (unsigned int i = 0; i < buffer_count; ++i) {
+		if (-1 == munmap(frame_buffers[i].start, frame_buffers[i].length)) {
+			return errnoexit("munmap");
+		}
+	}
 
-    if(file_descriptor == -1) {
-        return NULL;
-    }
-
-    for(;;) {
-        fd_set fds;
-        FD_ZERO(&fds);
-        FD_SET(file_descriptor, &fds);
-
-        struct timeval tv;
-        tv.tv_sec = 2;
-        tv.tv_usec = 0;
-
-        int result = select(file_descriptor + 1, &fds, NULL, NULL, &tv);
-        if(-1 == result) {
-            if(EINTR == errno) {
-                continue;
-            }
-            errnoexit("select");
-        } else if(0 == result) {
-            LOGE("select timeout, likely can't process chosen TV standard");
-            sleep(1);
-            break;
-        }
-
-        if(read_frame() == 1) {
-            return &frame_buffers[curBufferIndex];
-        }
-    }
-
-    return NULL;
+	free(frame_buffers);
+	return SUCCESS_LOCAL;
 }
 
-/* Stop capturing, uninitialize the device and free all memory. */
-void VideoDevice::stop_device() {
-    stop_capture();
-    uninit_device();
-    close_device();
 
+/* Close a file descriptor.
+ *
+ * fd - a pointer to the descriptor to close, which will be set to -1 on success
+ *      or fail.
+ *
+ * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
+ */
+int VideoDevice::close_device() {
 
+	return v4l2_close(file_descriptor);
 }
 
+
+/**
+ * detect_device - Helper function to attempt to find a specific device
+ */
 DeviceType VideoDevice::detect_device(const char* dev_name) {
 	struct v4l2_capability cap;
 	int fd = -1;
@@ -499,40 +475,11 @@ DeviceType VideoDevice::detect_device(const char* dev_name) {
 	}
 
 	return dev_type;
-
 }
-
-/******** Depricated LibYUV conversion functions**************************************************
- * TODO:  Remove this block at a later time
-void VideoDevice::convert_from_yuy2(int index) {
-
-	libyuv::YUY2ToARGB((uint8*)(frame_buffers[index].start), twoByteStride,
-	                   rgb_buffer, fourByteStride, device_sets.frame_width, device_sets.frame_height);
-
-	libyuv::ARGBToRGB565(rgb_buffer, fourByteStride, final_buffer, twoByteStride,
-	    		device_sets.frame_width, device_sets.frame_height);
-}
-void VideoDevice::convert_from_uyvy(int index) {
-
-	libyuv::UYVYToARGB((uint8*)(frame_buffers[index].start), twoByteStride,
-		                   rgb_buffer, fourByteStride, device_sets.frame_width, device_sets.frame_height);
-
-	libyuv::ARGBToRGB565(rgb_buffer, fourByteStride, final_buffer, twoByteStride,
-				device_sets.frame_width, device_sets.frame_height);
-
-}
-void VideoDevice::convert_from_rgb565(int index) {
-
-	//
-	// TODO:  Check the .length variable, make sure it measures in bytes
-	//
-	memcpy(final_buffer, frame_buffers[index].start, frame_buffers[index].length);
-}
-*************************************************************************/
 
 
 // Helper functions to open and close devices, to keep from repeating code
-int v4l2_open(const char* dev_name) {
+int VideoDevice::v4l2_open(const char* dev_name) {
 
 	struct stat st;
 	int fd = - 1;
@@ -559,7 +506,7 @@ int v4l2_open(const char* dev_name) {
 	return fd;
 }
 
-int v4l2_close(int fd) {
+int VideoDevice::v4l2_close(int fd) {
 	int result = SUCCESS_LOCAL;
 	if(-1 != fd && -1 == close(fd)) {
 		result = errnoexit("close");

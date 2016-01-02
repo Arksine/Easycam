@@ -1,3 +1,5 @@
+
+
 package com.arksine.easycam;
 
 
@@ -14,6 +16,11 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.Toast;
 
+/**
+ *  Class: EasycamView
+ *
+ *  Provides a surface to draw incoming frames on
+ */
 public class EasycamView extends SurfaceView implements
 SurfaceHolder.Callback, Runnable {
 
@@ -30,133 +37,127 @@ SurfaceHolder.Callback, Runnable {
 
     SharedPreferences sharedPrefs;
 
-   public EasycamView(Context context) {
-       super(context);
-       appContext = context;
-       sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
-       init();
-   }
 
-   public EasycamView(Context context, AttributeSet attrs) {
-       super(context, attrs);
-       appContext = context;
-       sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
-       init();
-   }
+    public EasycamView(Context context) {
+        super(context);
+        appContext = context;
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
+        init();
+    }
 
-   private void init() {
-       Log.d(TAG, "EasycamView constructed");
-       setFocusable(true);
-       setBackgroundColor(0);
+    public EasycamView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        appContext = context;
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
+        init();
+    }
 
-       mHolder = getHolder();
-       mHolder.addCallback(this);
-                
-   }
 
-   @Override
-   public void run() {	   
-       while(mRunning) {   	   
-  	  	 	   
-           if (capDevice.isAttached()) {                 
-               Canvas canvas = mHolder.lockCanvas();
-               if(canvas != null) {
-                   drawOnCanvas(canvas, capDevice.getFrame());
-                   mHolder.unlockCanvasAndPost(canvas);
-               }
-           }
-           else {
-               mRunning = false;
-           }
-    	     	      	                                      
-       }	   
-   }
+    private void init() {
+        Log.d(TAG, "EasycamView constructed");
+        setFocusable(true);
+        setBackgroundColor(0);
 
-   protected void drawOnCanvas(Canvas canvas, Bitmap videoBitmap) {
-       canvas.drawBitmap(videoBitmap, null, mViewWindow, null);
-   }
+        mHolder = getHolder();
+        mHolder.addCallback(this);
 
-   protected Rect getViewingWindow() {
-       return mViewWindow;
-   }
-   
-   private void setViewingWindow(int winWidth, int winHeight) {
+    }
+
+    @Override
+    public void run() {
+        while(mRunning) {
+            if (capDevice.isAttached()) {
+                capDevice.getFrame();
+
+            }
+            else {
+                mRunning = false;
+            }
+
+        }
+    }
+
+    protected Rect getViewingWindow() {
+        return mViewWindow;
+    }
+
+    private void setViewingWindow(int winWidth, int winHeight) {
 
         mViewWindow = new Rect(0,0,winWidth,winHeight);
 
-   }
-   
-   public void resume() {
-	    
-       if (mThread != null && mThread.isAlive())
-       {
-    	   mRunning = false;
-    	   try { 		   
-    		   mThread.join();
-    	   } 
-    	   catch (InterruptedException e) {
-    		   e.printStackTrace();
-    	   }
-       }
-       
-       capDevice = new NativeEasyCapture(sharedPrefs, appContext);
-       if(!capDevice.isDeviceConnected())
-       {
-           CharSequence text = "Error connecting to device";
-           int duration = Toast.LENGTH_SHORT;
-           Toast toast = Toast.makeText(appContext, text, duration);
-           toast.show();
+    }
 
-           Log.e(TAG, "Error connecting device");
-           mRunning = false;
-           return;
-       }
-       Log.i(TAG, "View resumed");
-       
-       mRunning = true;  
-       mThread = new Thread(this);
-       mThread.start();
-   }
-   
-   public void pause()  {
+    public void resume() {
 
-       mRunning = false;
-       if (mThread != null) {
-           boolean retry = true;
-           while (retry) {
-               try {
-                   mThread.join();
-                   retry = false;
-               } catch (InterruptedException e) {
-                   // TODO Auto-generated catch block
-                   e.printStackTrace();
-               }
-           }
-       }
-	   capDevice.stop();
-       Log.i(TAG, "View paused");
-	}
+        if (mThread != null && mThread.isAlive())
+        {
+            mRunning = false;
+            try {
+                mThread.join();
+            }
+            catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
-   @Override
-   public void surfaceCreated(SurfaceHolder holder) {
-       Log.d(TAG, "Surface created");
-       
-       resume();
-   }
+        capDevice = new NativeEasyCapture(sharedPrefs, appContext, mHolder);
+        if(!capDevice.isDeviceConnected())
+        {
+            CharSequence text = "Error connecting to device";
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(appContext, text, duration);
+            toast.show();
 
-   @Override
-   public void surfaceDestroyed(SurfaceHolder holder) {
-       Log.d(TAG, "Surface destroyed");
-      
-       pause();
-   }
+            Log.e(TAG, "Error connecting device");
+            mRunning = false;
+            return;
+        }
+        Log.i(TAG, "View resumed");
 
-   @Override
-   public void surfaceChanged(SurfaceHolder holder, int format, int winWidth,
-           int winHeight) {
-       Log.d("Easycam", "surfaceChanged");
+        mRunning = true;
+        mThread = new Thread(this);
+        mThread.start();
+    }
 
-       setViewingWindow (winWidth, winHeight);
-       
-   }
+    public void pause()  {
+
+        mRunning = false;
+        if (mThread != null) {
+            boolean retry = true;
+            while (retry) {
+                try {
+                    mThread.join();
+                    retry = false;
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+        }
+        capDevice.stop();
+        Log.i(TAG, "View paused");
+    }
+
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+        Log.d(TAG, "Surface created");
+
+        resume();
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        Log.d(TAG, "Surface destroyed");
+
+        pause();
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int winWidth,
+                               int winHeight) {
+        Log.d("Easycam", "surfaceChanged");
+
+        setViewingWindow (winWidth, winHeight);
+
+    }
 }

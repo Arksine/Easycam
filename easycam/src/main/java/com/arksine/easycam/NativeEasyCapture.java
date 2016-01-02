@@ -4,8 +4,10 @@ import java.io.File;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
+import android.graphics.PixelFormat;
 import android.util.Log;
+import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.widget.Toast;
 
 public class NativeEasyCapture implements EasyCapture {
@@ -15,11 +17,9 @@ public class NativeEasyCapture implements EasyCapture {
     private EasycapSettings deviceSets;
     boolean deviceConnected = false;
 
-    FrameProcessor mFrameProc;
-    
-    private native int startDevice(String deviceName, int width, int height,
-    		int devType, int regionStd, int numBufs);
-    private native byte[] getNextFrame();
+    private native int startDevice(Surface mySurface, String cacheDir, String deviceName,
+                                   int width, int height, int devType, int regionStd, int numBufs);
+    private native void getNextFrame();
     private native boolean isDeviceAttached();
     private native void stopDevice();
     private static native String detectDevice(String deviceName);
@@ -29,12 +29,15 @@ public class NativeEasyCapture implements EasyCapture {
         System.loadLibrary("easycapture");
     }
 
-    public NativeEasyCapture(SharedPreferences sharedPrefs, Context context) {
+    public NativeEasyCapture(SharedPreferences sharedPrefs, Context context, SurfaceHolder mySH) {
     	
     	deviceSets = new EasycapSettings(sharedPrefs);
-        mFrameProc = new FrameProcessor(context, deviceSets);
         // allocate an array of bytes to hold the entire size of the bitmap
         // at 32 bits per pixel
+
+        // TODO: If we have a device that delivers RGB565, we will need to change the surfaceview's
+        //       pixel format here.  Need to add support for those devices in settings
+        //mySH.setFormat(PixelFormat.RGB_565);
 
         boolean useToasts = sharedPrefs.getBoolean("pref_key_layout_toasts", true);
         if (useToasts) {
@@ -46,10 +49,10 @@ public class NativeEasyCapture implements EasyCapture {
             toast.show();
         }
 
-        connect();
+        connect(mySH.getSurface(), context);
     }
 
-    private void connect() {
+    private void connect(Surface mySurface, Context context) {
         boolean deviceReady = true;
 
         File deviceFile = new File(deviceSets.devName);
@@ -66,8 +69,8 @@ public class NativeEasyCapture implements EasyCapture {
 
         if(deviceReady) {
             Log.i(TAG, "Preparing camera with device name " + deviceSets.devName);
-            if(-1 == startDevice(deviceSets.devName, deviceSets.frameWidth,
-                    deviceSets.frameHeight, deviceSets.devType.second,
+            if(-1 == startDevice(mySurface, context.getCacheDir().toString(), deviceSets.devName,
+                    deviceSets.frameWidth, deviceSets.frameHeight, deviceSets.devType.second,
                     deviceSets.devStandard.second, deviceSets.numBuffers)) {
 
                 deviceConnected = false;
@@ -80,9 +83,9 @@ public class NativeEasyCapture implements EasyCapture {
         }
     }
 
-    public Bitmap getFrame() {
+    public void getFrame() {
 
-        return mFrameProc.processFrame(getNextFrame());
+        getNextFrame();
     }
 
     public void stop() {

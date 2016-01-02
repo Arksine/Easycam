@@ -22,6 +22,12 @@ android {
 
     }
 
+    buildTypes {
+        debug {
+            debuggable true
+        }
+    }
+
     splits {
         abi {
             enable true
@@ -38,34 +44,45 @@ android {
 
     // call regular ndk-build(.cmd) script from app directory
     task ndkBuild(type: Exec) {
-        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-            commandLine 'ndk-build.cmd', '-C', file('src/main').absolutePath
-        } else {
-            commandLine 'ndk-build', '-C', file('src/main').absolutePath
-        }
+        workingDir file('src/main')
+        commandLine getNdkBuildCmd()
     }
-
-    task ndkClean(type: Exec, description: 'Clean JNI object files') {
-        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-            commandLine 'ndk-build.cmd', '-C', file('src/main').absolutePath, 'clean'
-        } else {
-            commandLine 'ndk-build', '-C', file('src/main').absolutePath, 'clean'
-        }
-    }
-
-    clean.dependsOn 'ndkClean'
 
     tasks.withType(JavaCompile) {
         compileTask -> compileTask.dependsOn ndkBuild
     }
 
+    task ndkClean(type: Exec, description: 'Clean JNI object files') {
+        workingDir file('src/main')
+        commandLine getNdkBuildCmd(), 'clean'
+    }
+
+    clean.dependsOn ndkClean
+
 }
-
-
-
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:support-annotations:23.1.1'
     compile 'com.android.support:support-v13:23.1.1'
+}
+
+def getNdkDir() {
+    if (System.env.ANDROID_NDK_ROOT != null)
+        return System.env.ANDROID_NDK_ROOT
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+    def ndkdir = properties.getProperty('ndk.dir', null)
+    if (ndkdir == null)
+        throw new GradleException("NDK location not found. Define location with ndk.dir in the local.properties file or with an ANDROID_NDK_ROOT environment variable.")
+
+    return ndkdir
+}
+
+def getNdkBuildCmd() {
+    def ndkbuild = getNdkDir() + "/ndk-build"
+    if (Os.isFamily(Os.FAMILY_WINDOWS))
+        ndkbuild += ".cmd"
+
+    return ndkbuild
 }

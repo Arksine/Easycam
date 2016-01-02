@@ -4,9 +4,6 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.preference.PreferenceFragment;
 
-/*
-   TODO:  Add preference to select the number of buffers allocated
- */
 
 public class SettingsActivity extends Activity {
 

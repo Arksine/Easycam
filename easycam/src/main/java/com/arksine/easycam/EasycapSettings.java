@@ -17,15 +17,17 @@ public class EasycapSettings {
 	public final int frameWidth;
 	public final int frameHeight;
 	public final int numBuffers;
-	
+
+	//TODO:  Add preferences for more devices (will need to add them in native code as well
+	//       Could potentially enumerate all devices found by v4l2, then present options to
+	//       the user of which one to select.  The first Easycap device will be default.
 	
 	EasycapSettings(SharedPreferences sharedPrefs) {
 		
 		boolean prefSetDevManual = sharedPrefs.getBoolean("pref_key_manual_set_dev_loc", false);
 		if (prefSetDevManual)
 		{
-			String prefDevName = sharedPrefs.getString("pref_select_dev_loc", "/dev/video0");
-			devName = prefDevName;
+			devName = sharedPrefs.getString("pref_select_dev_loc", "/dev/video0");
 		}
 		else
 		{
