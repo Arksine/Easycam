@@ -6,7 +6,7 @@
 
 
 JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JNIEnv* jenv, jobject thisObj,
-		jobject javaSurface, jstring rsPath, jstring deviceName, jint width, jint height, jint devType,
+		jstring rsPath, jstring deviceName, jint width, jint height, jint devType,
 		jint regionStd, jint numBufs)
 {
 
@@ -57,7 +57,7 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	}
 
 	// instantiate frame renderer only if the video device is successfully initialized
-	fRenderer = new FrameRenderer(jenv, javaSurface, rsPath, vDevice->get_buffer_length(),
+	fRenderer = new FrameRenderer(jenv, rsPath, vDevice->get_buffer_length(),
 								  dSets.color_format);
 
 	result = vDevice->start_capture();
@@ -72,7 +72,8 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	return result;
 
 }
-JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(JNIEnv* jenv, jobject thisObj)
+JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(JNIEnv* jenv, jobject thisObj,
+                                                                               jobject surface)
 {
 	CaptureBuffer * curBuf = nullptr;
 
@@ -81,7 +82,7 @@ JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(J
 
 
 	if (curBuf)
-		fRenderer->renderFrame(curBuf);
+		fRenderer->renderFrame(jenv, surface, curBuf);
 
 }
 JNIEXPORT jboolean JNICALL Java_com_arksine_easycam_NativeEasyCapture_isDeviceAttached(JNIEnv* jenv, jobject thisObj)

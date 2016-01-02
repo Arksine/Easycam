@@ -67,7 +67,7 @@ SurfaceHolder.Callback, Runnable {
     public void run() {
         while(mRunning) {
             if (capDevice.isAttached()) {
-                capDevice.getFrame();
+                capDevice.getFrame(mHolder.getSurface());
 
             }
             else {

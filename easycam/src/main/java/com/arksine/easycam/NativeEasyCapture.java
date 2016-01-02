@@ -17,9 +17,9 @@ public class NativeEasyCapture implements EasyCapture {
     private EasycapSettings deviceSets;
     boolean deviceConnected = false;
 
-    private native int startDevice(Surface mySurface, String cacheDir, String deviceName,
+    private native int startDevice(String cacheDir, String deviceName,
                                    int width, int height, int devType, int regionStd, int numBufs);
-    private native void getNextFrame();
+    private native void getNextFrame(Surface mySurface);
     private native boolean isDeviceAttached();
     private native void stopDevice();
     private static native String detectDevice(String deviceName);
@@ -49,10 +49,10 @@ public class NativeEasyCapture implements EasyCapture {
             toast.show();
         }
 
-        connect(mySH.getSurface(), context);
+        connect(context);
     }
 
-    private void connect(Surface mySurface, Context context) {
+    private void connect(Context context) {
         boolean deviceReady = true;
 
         File deviceFile = new File(deviceSets.devName);
@@ -69,7 +69,7 @@ public class NativeEasyCapture implements EasyCapture {
 
         if(deviceReady) {
             Log.i(TAG, "Preparing camera with device name " + deviceSets.devName);
-            if(-1 == startDevice(mySurface, context.getCacheDir().toString(), deviceSets.devName,
+            if(-1 == startDevice(context.getCacheDir().toString(), deviceSets.devName,
                     deviceSets.frameWidth, deviceSets.frameHeight, deviceSets.devType.second,
                     deviceSets.devStandard.second, deviceSets.numBuffers)) {
 
@@ -83,9 +83,9 @@ public class NativeEasyCapture implements EasyCapture {
         }
     }
 
-    public void getFrame() {
+    public void getFrame(Surface mySurface) {
 
-        getNextFrame();
+        getNextFrame(mySurface);
     }
 
     public void stop() {

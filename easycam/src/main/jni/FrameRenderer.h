@@ -18,14 +18,18 @@ using namespace android::RSC;
  */
 class FrameRenderer {
 public:
-     FrameRenderer(JNIEnv* jenv, jobject surface, jstring rsPath, int bufLength,
+     FrameRenderer(JNIEnv* jenv, jstring rsPath, int bufLength,
                     PixelFormat pFormat);
     ~FrameRenderer();
 
-    void renderFrame(CaptureBuffer* inBuffer);
+    void renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* inBuffer);
 
 private:
-    ANativeWindow* window;
+
+	//TODO:  include variables for frame width, height, and the ANativeWindow pixel format
+	//       We can set these using ANativeWindow_setBuffersGeometry, which allows us
+	//       to directly render RGB_565, RGBA_8888, and RGBX_8888.  Will need to initialize
+	//       all of them in the constructor.  
 
 	sp<RS> rs;
     sp<Allocation> inputAlloc;
@@ -36,11 +40,11 @@ private:
 	void initRenderscript(JNIEnv* jenv, jstring rsPath, int bufLength);
 
     // Function pointer to store which call we need to make, depending on YUV type
-    void (FrameRenderer::* processFrame)(CaptureBuffer*);
+    void (FrameRenderer::* processFrame)(CaptureBuffer*, ANativeWindow*);
 
-    void processFromYUYV(CaptureBuffer* inBuffer);
-    void processFromUYVY(CaptureBuffer* inBuffer);
-    void processFromRGB(CaptureBuffer* inBuffer);
+    void processFromYUYV(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processFromUYVY(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processFromRGB(CaptureBuffer* inBuffer, ANativeWindow* window);
 
 };
 

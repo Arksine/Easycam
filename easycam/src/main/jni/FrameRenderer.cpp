@@ -5,10 +5,8 @@
 #include "FrameRenderer.h"
 #include "util.h"
 
-FrameRenderer::FrameRenderer(JNIEnv* jenv, jobject surface, jstring rsPath, int bufLength,
+FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, int bufLength,
                              PixelFormat pFormat) {
-
-    window = ANativeWindow_fromSurface(jenv, surface);
 
     // Determine the color space of the input buffer, depending on the device selected
 	switch(pFormat){
@@ -32,7 +30,6 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jobject surface, jstring rsPath, int 
 
 FrameRenderer::~FrameRenderer() {
 
-    ANativeWindow_release(window);
 }
 
 void FrameRenderer::initRenderscript(JNIEnv* jenv, jstring rsPath, int bufLength) {
@@ -64,46 +61,51 @@ void FrameRenderer::initRenderscript(JNIEnv* jenv, jstring rsPath, int bufLength
 
 }
 
-void FrameRenderer::renderFrame(CaptureBuffer* inBuffer) {
+void FrameRenderer::renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* inBuffer) {
+
+	ANativeWindow* rWindow = ANativeWindow_fromSurface(jenv, surface);
+
 	// Call the function pointer, which is set in the constructor
-	(this->*processFrame)(inBuffer);
+	(this->*processFrame)(inBuffer, rWindow);
+
+	ANativeWindow_release(rWindow);
 }
 
 
-void FrameRenderer::processFromYUYV(CaptureBuffer* inBuffer) {
+void FrameRenderer::processFromYUYV(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	inputAlloc->copy1DFrom(inBuffer->start);
 	script->forEach_convertFromYUYV(inputAlloc);
 
 	// Write converted colors to the window
-	ANativeWindow_Buffer* wBuffer;
-	if (ANativeWindow_lock(window, wBuffer, NULL) == 0) {
-		outputAlloc->copy1DTo(wBuffer->bits);
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		outputAlloc->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 }
 
 
 
-void FrameRenderer::processFromUYVY(CaptureBuffer* inBuffer) {
+void FrameRenderer::processFromUYVY(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	inputAlloc->copy1DFrom(inBuffer->start);
 	script->forEach_convertFromUYVY(inputAlloc);
 
 	// Write converted colors to the window
-	ANativeWindow_Buffer* wBuffer;
-	if (ANativeWindow_lock(window, wBuffer, NULL) == 0) {
-		outputAlloc->copy1DTo(wBuffer->bits);
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		outputAlloc->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 }
 
-void FrameRenderer::processFromRGB(CaptureBuffer* inBuffer) {
+void FrameRenderer::processFromRGB(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	// Write buffer directly to window, no conversion is necessary
-	ANativeWindow_Buffer* wBuffer;
-	if (ANativeWindow_lock(window, wBuffer, NULL) == 0) {
-		memcpy(wBuffer->bits, inBuffer->start,  inBuffer->length);
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		memcpy(wBuffer.bits, inBuffer->start,  inBuffer->length);
 		ANativeWindow_unlockAndPost(window);
 	}
 }
