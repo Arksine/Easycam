@@ -12,8 +12,10 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings dSets)
 	frameWidth = dSets.frame_width;
 	frameHeight = dSets.frame_height;
 
-	// output frame is 4 bytes per pixel, but half of the frame height as we are bob deinterlacing
-	outputFrameSize = (frameWidth * frameHeight * 4) / 2;
+	//TODO:  Create a setting for deinterlacing, and set the variable accordingly
+	//      If no deint, then output height = input height.  Otherwise its half height
+
+	outputFrameHeight = frameHeight / 2;
 
 
     // Determine the color space of the input buffer, depending on the device selected
@@ -54,7 +56,7 @@ void FrameRenderer::initRenderscript(JNIEnv* jenv, jstring rsPath) {
 	int inAllocationSize = (frameWidth*frameHeight*2) / 4;
 
 	// There is 1 element per pixel, but we are only storing half of the frame in each dimension
-	int outAllocationWidth = (frameWidth*frameHeight) / 2;
+	int outAllocationSize = (frameWidth*frameHeight) / 2;
 
 	int inputXElements = (frameWidth) * 2 / 4;
 
@@ -69,11 +71,13 @@ void FrameRenderer::initRenderscript(JNIEnv* jenv, jstring rsPath) {
 
 
 	inputAlloc = Allocation::createSized(rs, inElement, inAllocationSize);
-	outputAlloc = Allocation::createSized2D(rs, outElement, outAllocationWidth, 2);
+	outputAllocOdd = Allocation::createSized(rs, outElement, outAllocationSize);
+	outputAllocEven = Allocation::createSized(rs, outElement, outAllocationSize);
 
 	script = new ScriptC_convert(rs);
 
-	script->set_output(outputAlloc);
+	script->set_outputOdd(outputAllocOdd);
+	script->set_outputEven(outputAllocEven);
 	script->set_xElements(inputXElements);
 
 }
@@ -81,7 +85,7 @@ void FrameRenderer::initRenderscript(JNIEnv* jenv, jstring rsPath) {
 void FrameRenderer::renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* inBuffer) {
 
 	ANativeWindow* rWindow = ANativeWindow_fromSurface(jenv, surface);
-	ANativeWindow_setBuffersGeometry(rWindow, frameWidth, (frameHeight / 2), framePixelFormat);
+	ANativeWindow_setBuffersGeometry(rWindow, frameWidth, outputFrameHeight, framePixelFormat);
 
 	// Call the function pointer, which is set in the constructor
 	(this->*processFrame)(inBuffer, rWindow);
@@ -95,14 +99,14 @@ void FrameRenderer::processFromYUYV(CaptureBuffer* inBuffer, ANativeWindow* wind
 	inputAlloc->copy1DFrom(inBuffer->start);
 	script->forEach_convertFromYUYV(inputAlloc);
 
-	// Write output buffers to the window, we are attempting bob deinterlacing, odd first
+	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy2DRangeTo(0, 0, outputFrameSize , 0, wBuffer.bits);
+		outputAllocEven->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy2DRangeTo(0, 0, outputFrameSize , 1, wBuffer.bits);
+		outputAllocOdd->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 }
@@ -116,14 +120,14 @@ void FrameRenderer::processFromUYVY(CaptureBuffer* inBuffer, ANativeWindow* wind
 
 	// TODO:  Add output frame size to private data memebers, calculate in constructor
 
-	// Write output buffers to the window, we are attempting bob deinterlacing, odd first
+	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy2DRangeTo(0, 0, outputFrameSize , 1, wBuffer.bits);
+		outputAllocEven->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy2DRangeTo(0, 1, outputFrameSize , 1, wBuffer.bits);
+		outputAllocOdd->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 }

@@ -3,7 +3,8 @@
 #pragma rs java_package_name(com.arksine.easycam)
 #pragma rs_fp_relaxed
 
-rs_allocation output;
+rs_allocation outputOdd;
+rs_allocation outputEven;
 
 // number of elements representing the width of a frame from the input buffer
 // (frameWidth * 2 bytes per pixel / 4 bytes per element)
@@ -31,8 +32,16 @@ void __attribute__((kernel)) convertFromYUYV(uchar4 in, uint32_t x)
 	// binary & the index to see if the data is part of an even or odd frame
     yOutIndex &= (uint32_t)0x0001;
 
-    rsSetElementAt_uchar4(output, first, xOutIndex, yOutIndex);
-    rsSetElementAt_uchar4(output, second, xOutIndex+1, yOutIndex);
+	if (yOutIndex) {
+		// This is the second field, so output to Even Allocation
+        rsSetElementAt_uchar4(outputEven, first, xOutIndex);
+        rsSetElementAt_uchar4(outputEven, second, xOutIndex+1);
+    }
+    else
+    {
+        rsSetElementAt_uchar4(outputOdd, first, xOutIndex);
+        rsSetElementAt_uchar4(outputOdd, second, xOutIndex+1);
+    }
 
 
 
@@ -52,7 +61,7 @@ void __attribute__((kernel)) convertFromUYVY(uchar4 in, uint32_t x)
     xOffset = xOffset * xElements;
 
     // offset the x by subtracting the yIndex multiplied by the number of elements in the frame width.
-    uint32_t xOutIndex = 2*((x - (yOutIndex * xElements)));
+    uint32_t xOutIndex = 2*(x - xOffset);
 
     first = rsYuvToRGBA_uchar4(in.y, in.x, in.z);
     second = rsYuvToRGBA_uchar4(in.w, in.x, in.z);
@@ -60,7 +69,15 @@ void __attribute__((kernel)) convertFromUYVY(uchar4 in, uint32_t x)
     // binary & the index to see if the data is part of an even or odd frame
     yOutIndex &= (uint32_t)0x0001;
 
-    rsSetElementAt_uchar4(output, first, xOutIndex, yOutIndex);
-    rsSetElementAt_uchar4(output, second, xOutIndex+1, yOutIndex);
+    if (yOutIndex) {
+        // This is the second field, so output to Even Allocation
+        rsSetElementAt_uchar4(outputEven, first, xOutIndex);
+        rsSetElementAt_uchar4(outputEven, second, xOutIndex+1);
+    }
+    else
+    {
+        rsSetElementAt_uchar4(outputOdd, first, xOutIndex);
+        rsSetElementAt_uchar4(outputOdd, second, xOutIndex+1);
+    }
 
 }

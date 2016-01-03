@@ -30,14 +30,15 @@ private:
 	//       to directly render RGB_565, RGBA_8888, and RGBX_8888.  Will need to initialize
 	//       all of them in the constructor.
 
-    int outputFrameSize;   // output frame size in bytes
+    int outputFrameHeight;
 	int frameWidth;        // input frame width in pixels
 	int frameHeight;       // input frame height in pixels
 	int32_t framePixelFormat;
 
 	sp<RS> rs;
     sp<Allocation> inputAlloc;
-    sp<Allocation> outputAlloc;
+    sp<Allocation> outputAllocOdd;
+    sp<Allocation> outputAllocEven;
 
     ScriptC_convert* script;
 
