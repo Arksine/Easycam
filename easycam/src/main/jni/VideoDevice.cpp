@@ -21,7 +21,7 @@ VideoDevice::VideoDevice (DeviceSettings devSets) {
 	device_sets = devSets;
 
 	buffer_count = 0;
-	frame_buffers = nullptr;
+	frame_buffers = NULL;
 	file_descriptor = -1;
 
     curBufferIndex = 0;

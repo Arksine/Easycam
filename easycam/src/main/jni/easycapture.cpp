@@ -42,7 +42,7 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	}
 
 
-	if (vDevice == nullptr)
+	if (vDevice == NULL)
 		vDevice = new VideoDevice(dSets);
 
 	int result = vDevice->open_device();
@@ -62,9 +62,9 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	result = vDevice->start_capture();
 	if(result != SUCCESS_LOCAL) {
 		delete vDevice;
-		vDevice = nullptr;
+		vDevice = NULL;
 		delete fRenderer;
-		fRenderer = nullptr;
+		fRenderer = NULL;
 		LOGE("Unable to start capture, resetting device");
 	}
 
@@ -74,7 +74,7 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_getNextFrame(JNIEnv* jenv, jobject thisObj,
                                                                                jobject surface)
 {
-	CaptureBuffer * curBuf = nullptr;
+	CaptureBuffer * curBuf = NULL;
 
 	if (vDevice)
 		curBuf = vDevice->process_capture();
@@ -97,12 +97,12 @@ JNIEXPORT jboolean JNICALL Java_com_arksine_easycam_NativeEasyCapture_isDeviceAt
 JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNIEnv* jenv, jobject thisObj) {
 	if (vDevice) {
 		delete vDevice;
-		vDevice = nullptr;
+		vDevice = NULL;
 	}
 
 	if (fRenderer) {
 		delete fRenderer;
-		fRenderer = nullptr;
+		fRenderer = NULL;
 	}
 }
 

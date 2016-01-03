@@ -5,9 +5,6 @@ package com.arksine.easycam;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Rect;
 import android.preference.PreferenceManager;
 import android.util.AttributeSet;
@@ -100,7 +97,7 @@ SurfaceHolder.Callback, Runnable {
             }
         }
 
-        capDevice = new NativeEasyCapture(sharedPrefs, appContext, mHolder);
+        capDevice = new NativeEasyCapture(sharedPrefs, appContext);
         if(!capDevice.isDeviceConnected())
         {
             CharSequence text = "Error connecting to device";

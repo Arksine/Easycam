@@ -30,8 +30,9 @@ private:
 	//       to directly render RGB_565, RGBA_8888, and RGBX_8888.  Will need to initialize
 	//       all of them in the constructor.
 
-	int frameWidth;
-	int frameHeight;
+    int outputFrameSize;   // output frame size in bytes
+	int frameWidth;        // input frame width in pixels
+	int frameHeight;       // input frame height in pixels
 	int32_t framePixelFormat;
 
 	sp<RS> rs;
@@ -40,7 +41,7 @@ private:
 
     ScriptC_convert* script;
 
-	void initRenderscript(JNIEnv* jenv, jstring rsPath, int bufLength);
+	void initRenderscript(JNIEnv* jenv, jstring rsPath);
 
     // Function pointer to store which call we need to make, depending on YUV type
     void (FrameRenderer::* processFrame)(CaptureBuffer*, ANativeWindow*);

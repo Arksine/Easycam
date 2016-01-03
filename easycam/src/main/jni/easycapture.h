@@ -12,8 +12,8 @@
 #include "VideoDevice.h"
 #include "FrameRenderer.h"
 
-VideoDevice* vDevice = nullptr;
-FrameRenderer* fRenderer = nullptr;
+VideoDevice* vDevice = NULL;
+FrameRenderer* fRenderer = NULL;
 
 extern "C" {
     JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JNIEnv* jenv, jobject thisObj,

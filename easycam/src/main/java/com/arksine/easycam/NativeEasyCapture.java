@@ -4,10 +4,8 @@ import java.io.File;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.PixelFormat;
 import android.util.Log;
 import android.view.Surface;
-import android.view.SurfaceHolder;
 import android.widget.Toast;
 
 public class NativeEasyCapture implements EasyCapture {
@@ -29,15 +27,11 @@ public class NativeEasyCapture implements EasyCapture {
         System.loadLibrary("easycapture");
     }
 
-    public NativeEasyCapture(SharedPreferences sharedPrefs, Context context, SurfaceHolder mySH) {
+    public NativeEasyCapture(SharedPreferences sharedPrefs, Context context) {
     	
     	deviceSets = new EasycapSettings(sharedPrefs);
         // allocate an array of bytes to hold the entire size of the bitmap
         // at 32 bits per pixel
-
-        // TODO: If we have a device that delivers RGB565, we will need to change the surfaceview's
-        //       pixel format here.  Need to add support for those devices in settings
-        //mySH.setFormat(PixelFormat.RGB_565);
 
         boolean useToasts = sharedPrefs.getBoolean("pref_key_layout_toasts", true);
         if (useToasts) {

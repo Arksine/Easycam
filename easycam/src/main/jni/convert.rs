@@ -5,18 +5,35 @@
 
 rs_allocation output;
 
+// number of elements representing the width of a frame (frameWidth * 2 bytes per pixel / 4 unsigned chars)
+int32_t xElements;
+
 void __attribute__((kernel)) convertFromYUYV(uchar4 in, uint32_t x)
 {
     uchar4 first;
     uchar4 second;
 
-    uint32_t outIndex = 2*x;
+	// get the y index by dividing the current position by the frameWidth.  All decimals should
+	// get floored
+	uint32_t yOutIndex = (x / xElements);
+
+	// since we are splitting the input allocation into two outputs
+	uint32_t xOffset = (yOutIndex + 1) / 2;
+	xOffset = xOffset * xElements;
+
+	// offset the x by subtracting the yIndex multiplied by the number of elements in the frame width.
+    uint32_t xOutIndex = 2*(x - xOffset);
 
     first = rsYuvToRGBA_uchar4(in.x, in.y, in.w);
     second = rsYuvToRGBA_uchar4(in.z, in.y, in.w);
 
-    rsSetElementAt_uchar4(output, first, outIndex);
-    rsSetElementAt_uchar4(output, second, outIndex+1);
+	// binary & the index to see if the data is part of an even or odd frame
+    yOutIndex = yOutIndex & (uint32_t)0x0001;
+
+    rsSetElementAt_uchar4(output, first, xOutIndex, yOutIndex);
+    rsSetElementAt_uchar4(output, second, xOutIndex+1, yOutIndex);
+
+
 
 }
 
@@ -25,12 +42,24 @@ void __attribute__((kernel)) convertFromUYVY(uchar4 in, uint32_t x)
     uchar4 first;
     uchar4 second;
 
-    uint32_t outIndex = 2*x;
+    // get the y index by dividing the current position by the frameWidth.  All decimals should
+    // get floored
+    uint32_t yOutIndex = (x / xElements);
+
+    // since we are splitting the input allocation into two outputs
+    uint32_t xOffset = (yOutIndex + 1) / 2;
+    xOffset = xOffset * xElements;
+
+    // offset the x by subtracting the yIndex multiplied by the number of elements in the frame width.
+    uint32_t xOutIndex = 2*((x - (yOutIndex * xElements)));
 
     first = rsYuvToRGBA_uchar4(in.y, in.x, in.z);
     second = rsYuvToRGBA_uchar4(in.w, in.x, in.z);
 
-    rsSetElementAt_uchar4(output, first, outIndex);
-    rsSetElementAt_uchar4(output, second, outIndex+1);
+    // binary & the index to see if the data is part of an even or odd frame
+    yOutIndex = yOutIndex & (uint32_t)0x0001;
+
+    rsSetElementAt_uchar4(output, first, xOutIndex, yOutIndex);
+    rsSetElementAt_uchar4(output, second, xOutIndex+1, yOutIndex);
 
 }

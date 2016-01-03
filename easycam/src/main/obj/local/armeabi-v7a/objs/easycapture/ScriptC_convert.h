@@ -36,6 +36,7 @@ private:
      * exported variable, the constructor will initialize this field to the same value.
      */
     android::RSC::sp<const android::RSC::Allocation> mExportVar_output;
+    int32_t mExportVar_xElements;
     /* The following elements are used to verify the types of allocations passed to kernels.
      */
     android::RSC::sp<const android::RSC::Element> __rs_elem_U8_4;
@@ -60,13 +61,17 @@ public:
         return mExportVar_output;
     }
 
+    void set_xElements(int32_t v) {
+        setVar(1, &v, sizeof(v));
+        mExportVar_xElements = v;
+    }
+
+    int32_t get_xElements() const {
+        return mExportVar_xElements;
+    }
+
     // No forEach_root(...)
     /* For each kernel of the script corresponds one method.  That method queues the kernel
      * for execution.  The kernel may not have completed nor even started by the time this
      * function returns.  Calls that extract the data out of the output allocation will wait
      * for the kernels to complete.
-     */
-    void forEach_convertFromYUYV(android::RSC::sp<const android::RSC::Allocation> in);
-    void forEach_convertFromUYVY(android::RSC::sp<const android::RSC::Allocation> in);
-};
-
