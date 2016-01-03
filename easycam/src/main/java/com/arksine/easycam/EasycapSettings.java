@@ -126,7 +126,7 @@ public class EasycapSettings {
     private String checkDevices () {	
 		String fName;
 	
-		for (int i=0; i<10; i++)
+		for (int i=0; i<20; i++)
 		{
 			fName = "/dev/video" + String.valueOf(i);
 			File test = new File(fName);

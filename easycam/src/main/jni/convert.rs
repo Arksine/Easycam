@@ -5,7 +5,8 @@
 
 rs_allocation output;
 
-// number of elements representing the width of a frame (frameWidth * 2 bytes per pixel / 4 unsigned chars)
+// number of elements representing the width of a frame from the input buffer
+// (frameWidth * 2 bytes per pixel / 4 bytes per element)
 int32_t xElements;
 
 void __attribute__((kernel)) convertFromYUYV(uchar4 in, uint32_t x)
@@ -28,7 +29,7 @@ void __attribute__((kernel)) convertFromYUYV(uchar4 in, uint32_t x)
     second = rsYuvToRGBA_uchar4(in.z, in.y, in.w);
 
 	// binary & the index to see if the data is part of an even or odd frame
-    yOutIndex = yOutIndex & (uint32_t)0x0001;
+    yOutIndex &= (uint32_t)0x0001;
 
     rsSetElementAt_uchar4(output, first, xOutIndex, yOutIndex);
     rsSetElementAt_uchar4(output, second, xOutIndex+1, yOutIndex);
@@ -57,7 +58,7 @@ void __attribute__((kernel)) convertFromUYVY(uchar4 in, uint32_t x)
     second = rsYuvToRGBA_uchar4(in.w, in.x, in.z);
 
     // binary & the index to see if the data is part of an even or odd frame
-    yOutIndex = yOutIndex & (uint32_t)0x0001;
+    yOutIndex &= (uint32_t)0x0001;
 
     rsSetElementAt_uchar4(output, first, xOutIndex, yOutIndex);
     rsSetElementAt_uchar4(output, second, xOutIndex+1, yOutIndex);

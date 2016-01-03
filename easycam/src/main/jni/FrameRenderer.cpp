@@ -119,11 +119,11 @@ void FrameRenderer::processFromUYVY(CaptureBuffer* inBuffer, ANativeWindow* wind
 	// Write output buffers to the window, we are attempting bob deinterlacing, odd first
 	ANativeWindow_Buffer wBuffer;
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy2DRangeTo(0, 0, outputFrameSize , 0, wBuffer.bits);
+		outputAlloc->copy2DRangeTo(0, 0, outputFrameSize , 1, wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy2DRangeTo(0, 0, outputFrameSize , 1, wBuffer.bits);
+		outputAlloc->copy2DRangeTo(0, 1, outputFrameSize , 1, wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 }
