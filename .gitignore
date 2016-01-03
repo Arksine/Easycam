@@ -48,3 +48,5 @@ proguard/
 *.exe
 *.out
 *.app
+
+easycam/src/main/obj/local/*
