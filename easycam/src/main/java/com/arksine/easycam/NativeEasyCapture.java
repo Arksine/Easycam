@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.Surface;
-import android.view.SurfaceHolder;
 import android.widget.Toast;
 
 public class NativeEasyCapture implements EasyCapture {
