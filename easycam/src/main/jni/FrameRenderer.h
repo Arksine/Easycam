@@ -18,17 +18,18 @@ using namespace android::RSC;
  */
 class FrameRenderer {
 public:
-     FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings dSets);
+     FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceInfo devInfo);
     ~FrameRenderer();
 
     void renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* inBuffer);
 
 private:
 
-	//TODO:  include variables for frame width, height, and the ANativeWindow pixel format
-	//       We can set these using ANativeWindow_setBuffersGeometry, which allows us
-	//       to directly render RGB_565, RGBA_8888, and RGBX_8888.  Will need to initialize
-	//       all of them in the constructor.
+	/**
+	 * TODO: Add functionality to choose deinterlacing options(none, discard, bob even first,
+	 *       bob odd first, and perhaps blend.  Will need to choose options from settings in
+	 *       java.
+	 */
 
     int outputFrameHeight;
 	int frameWidth;        // input frame width in pixels
@@ -37,8 +38,8 @@ private:
 
 	sp<RS> rs;
     sp<Allocation> inputAlloc;
-    sp<Allocation> outputAllocOdd;
-    sp<Allocation> outputAllocEven;
+    sp<Allocation> outputAlloc;
+    sp<Allocation> pixelAlloc;   // Allocation that represents each pixel in the input buffer
 
     ScriptC_convert* script;
 

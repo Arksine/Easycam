@@ -12,16 +12,16 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 
 	char* devName = (char*)jenv->GetStringUTFChars(deviceName, 0);
 
-	DeviceSettings dSets;
+	DeviceInfo devInfo;
 
 	// Assign basic settings
-	CLEAR(dSets);
-	dSets.device_name = devName;
-	dSets.frame_width = (int)width;
-	dSets.frame_height = (int)height;
-	dSets.device_type = (DeviceType)devType;
-	dSets.standard_id = (VideoStandard)regionStd;
-	dSets.num_buffers = (int)numBufs;
+	CLEAR(devInfo);
+	devInfo.device_name = devName;
+	devInfo.frame_width = (int)width;
+	devInfo.frame_height = (int)height;
+	devInfo.device_type = (DeviceType)devType;
+	devInfo.standard_id = (VideoStandard)regionStd;
+	devInfo.num_buffers = (int)numBufs;
 
 	// TODO: retreive pixel format from Java settings, rather than set it here
 	switch(dSets.device_type) {
@@ -43,7 +43,7 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 
 
 	if (vDevice == NULL)
-		vDevice = new VideoDevice(dSets);
+		vDevice = new VideoDevice(devInfo);
 
 	int result = vDevice->open_device();
 	jenv->ReleaseStringUTFChars(deviceName, devName);
@@ -57,7 +57,7 @@ JNIEXPORT jint JNICALL Java_com_arksine_easycam_NativeEasyCapture_startDevice(JN
 	}
 
 	// instantiate frame renderer only if the video device is successfully initialized
-	fRenderer = new FrameRenderer(jenv, rsPath, dSets);
+	fRenderer = new FrameRenderer(jenv, rsPath, devInfo);
 
 	result = vDevice->start_capture();
 	if(result != SUCCESS_LOCAL) {
@@ -106,31 +106,17 @@ JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNI
 	}
 }
 
-JNIEXPORT jstring JNICALL Java_com_arksine_easycam_NativeEasyCapture_detectDevice(JNIEnv* jenv, jobject thisObj, jstring deviceName)
+JNIEXPORT jstring JNICALL Java_com_arksine_easycam_NativeEasyCapture_detectDevice(JNIEnv* jenv, jobject thisObj,
+                                                                                  jstring deviceLocation)
 {
-	DeviceType dType = NO_DEVICE;
+	char* devName;
 	jstring result;
 
-	char* devName = (char*)jenv->GetStringUTFChars(deviceName, 0);
-	dType = VideoDevice::detect_device(devName);
-	jenv->ReleaseStringUTFChars(deviceName, devName);
+	char* location = (char*)jenv->GetStringUTFChars(deviceLocation, 0);
+	devName = VideoDevice::detect_device(location);
+	jenv->ReleaseStringUTFChars(deviceLocation, location);
 
-	switch(dType) {
-	case UTV007:
-		result = jenv->NewStringUTF("UTV007");
-		break;
-	case EMPIA:
-		result = jenv->NewStringUTF("EMPIA");
-		break;
-	case STK1160:
-		result = jenv->NewStringUTF("STK1160");
-		break;
-	case SOMAGIC:
-		result = jenv->NewStringUTF("SOMAGIC");
-		break;
-	default:
-		result = jenv->NewStringUTF("NODEVICE");
-	}
+	result = jenv->NewStringUTF(devName);
 
 	return result;
 }

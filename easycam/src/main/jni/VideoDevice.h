@@ -24,7 +24,7 @@ typedef unsigned char uint8;
  */
 class VideoDevice {
 public:
-	VideoDevice(DeviceSettings devSets);
+	VideoDevice(DeviceInfo devInfo);
 	virtual ~VideoDevice();
 
 	/* The below functions control a capture device.  A note about how they work:
@@ -42,7 +42,7 @@ public:
 	void stop_device();  // shut down device
 
 	// static function to detect a device
-	static DeviceType detect_device(const char* dev_name);
+	static const char* detect_device(const char* devLocation);
 
 	bool video_device_attached() {
 		if (file_descriptor == -1)
@@ -57,7 +57,7 @@ private:
 	CaptureBuffer* frame_buffers;
 
 	int file_descriptor;
-	DeviceSettings device_sets;
+	DeviceInfo device_sets;
 
 	int curBufferIndex;  // the index for the last buffer read into memory
 

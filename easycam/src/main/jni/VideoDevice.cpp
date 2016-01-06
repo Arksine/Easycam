@@ -16,9 +16,9 @@
 #include <malloc.h>
 #include <cassert>
 
-VideoDevice::VideoDevice (DeviceSettings devSets) {
+VideoDevice::VideoDevice (DeviceInfo devInfo) {
 
-	device_sets = devSets;
+	device_sets = devInfo;
 
 	buffer_count = 0;
 	frame_buffers = NULL;
@@ -26,7 +26,7 @@ VideoDevice::VideoDevice (DeviceSettings devSets) {
 
     curBufferIndex = 0;
 
-	int area = devSets.frame_width * devSets.frame_height;
+	int area = device_sets.frame_width * device_sets.frame_height;
 
 
 }
@@ -437,44 +437,38 @@ int VideoDevice::close_device() {
 /**
  * detect_device - Helper function to attempt to find a specific device
  */
-DeviceType VideoDevice::detect_device(const char* dev_name) {
+const char* VideoDevice::detect_device(const char* devLocation) {
 	struct v4l2_capability cap;
 	int fd = -1;
-	DeviceType dev_type = NO_DEVICE;
-
 
 	fd = v4l2_open(dev_name);
 	if (fd == -1)
 	{
-		return NO_DEVICE;
+		return "NO_DEVICE";
 	}
 
 	// Get device capabilities
 	CLEAR(cap);
 	if(-1 == xioctl(fd, VIDIOC_QUERYCAP, &cap)) {
-		return NO_DEVICE;
+		return "NO_DEVICE";
+	}
+
+	if(!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+		return "NO_DEVICE";
+	}
+
+	if(!(cap.capabilities & V4L2_CAP_STREAMING)) {
+		return "NO_DEVICE";
 	}
 
 	LOGI("Driver detected as: %s", cap.driver);
 
-
-	if(strncmp((const char*)cap.driver, "usbtv", 5) == 0)
-		dev_type = UTV007;
-	else if(strncmp((const char*)cap.driver,"em28xx", 6) == 0)
-		dev_type = EMPIA;
-	else if(strncmp((const char*)cap.driver, "stk1160", 7) == 0)
-		dev_type = STK1160;
-	else if(strncmp((const char*)cap.driver, "smi2021", 7) == 0)
-		dev_type = SOMAGIC;
-	else
-		dev_type = NO_DEVICE;
-
 	// Close Device
 	if(v4l2_close(fd) != SUCCESS_LOCAL) {
-		return NO_DEVICE;
+		return "NO_DEVICE";
 	}
 
-	return dev_type;
+	return cap.driver;
 }
 
 

@@ -1,28 +1,46 @@
 package com.arksine.easycam;
 
 import java.io.File;
+import java.util.ArrayList;
 
 import android.content.SharedPreferences;
 import android.util.Log;
 import android.util.Pair;
 
 
+
 public class EasycapSettings {
 	
 	private static String TAG = "EasyCapSettings";
 	
-	public final Pair<String, Integer> devType;
-	public final Pair<String, Integer> devStandard;
-	public final String devName;
-	public final int frameWidth;
-	public final int frameHeight;
-	public final int numBuffers;
+	//public final Pair<String, Integer> devType;
+	//public final Pair<String, Integer> devStandard;
+
 
 	//TODO:  Add preferences for more devices (will need to add them in native code as well
 	//       Could potentially enumerate all devices found by v4l2, then present options to
 	//       the user of which one to select.  The first Easycap device will be default.
-	
+
+	public enum DeviceStandard {NTSC, PAL};
+
+	public enum PixelFormat {YUYV, UYVY, RGB565, RGBA8888};
+
+	public class DeviceInfo {
+		public String devName = "default";
+		public String devLocation = "/dev/video0";
+		public int frameWidth = 720;
+		public int frameHeight = 480;
+		public int numBuffers = 2;
+		public DeviceStandard std = DeviceStandard.NTSC;
+		public PixelFormat pixFmt = PixelFormat.YUYV;
+	}
+
+	private static ArrayList<DeviceInfo> deviceList;  // list of devices detected on the system
+	private DeviceInfo currentDevice;  // The currently selected device
+
 	EasycapSettings(SharedPreferences sharedPrefs) {
+
+
 		
 		boolean prefSetDevManual = sharedPrefs.getBoolean("pref_key_manual_set_dev_loc", false);
 		if (prefSetDevManual)
@@ -122,23 +140,26 @@ public class EasycapSettings {
 		Log.i(TAG, "Currently set frame height: " + frameHeight);
 	}	
 	
-    // iterate through the video devices and choose the first one
-    private String checkDevices () {	
-		String fName;
-	
-		for (int i=0; i<20; i++)
+
+    private static void enumerateDevices () {
+		String fLocation;
+		deviceList = new ArrayList<DeviceInfo>(5);
+	    DeviceInfo curDevice;
+
+		for (int i=0; i<99; i++)
 		{
-			fName = "/dev/video" + String.valueOf(i);
-			File test = new File(fName);
+			fLocation = "/dev/video" + String.valueOf(i);
+			File test = new File(fLocation);
 			
 			if (test.exists()){
-				return fName;
+				NativeEasyCapture.findDevice(fLocation);
+
+				//TODO: Add devices to the array list here.  Supported devices and configuratons
+				//      need to be added to a settings xml file and looked up
 			 			
 			}    			
 		}
-		
-		fName = "/dev/video0";
-		return fName;
+
 	}
     
 }

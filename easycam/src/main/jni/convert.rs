@@ -3,81 +3,115 @@
 #pragma rs java_package_name(com.arksine.easycam)
 #pragma rs_fp_relaxed
 
-rs_allocation outputOdd;
-rs_allocation outputEven;
+rs_allocation inAllocation
+rs_allocation outAllocation
 
-// number of elements representing the width of a frame from the input buffer
-// (frameWidth * 2 bytes per pixel / 4 bytes per element)
-int32_t xElements;
+int32_t frameWidth;
+int32_t firstElement;   //  The first Element to be processed in interleaved frames.  Equals 0 for
+						//  Odd frames, (frameWidth / 2) for even frames in YUY2 or other 16-bit
+						//  formats, and frameWidth for RGBA and other 32-bit formats
 
-void __attribute__((kernel)) convertFromYUYV(uchar4 in, uint32_t x)
+// Converts whole frame from YUYV to RGBA
+void __attribute__((kernel)) convertFrameFromYUYV(int32_t in, uint32_t x)
 {
-    uchar4 first;
-    uchar4 second;
+	uchar4 inElement;
+    uchar4 outElement;
+    uchar yValue;
 
-	// get the y index by dividing the current position by the frameWidth.  All decimals should
-	// get floored
-	uint32_t yOutIndex = (x / xElements);
+    inElement = rsGetElementAt_uchar4(inAllocation, (x / 2));
 
-	// since we are splitting the input allocation into two outputs
-	uint32_t xOffset = (yOutIndex + 1) / 2;
-	xOffset = xOffset * xElements;
+	if ((x & (int32_t)0x0001) == 0)
+	{
+		//First pixel in a pair of YUV pixels
+		yValue = inElement.x;
+	}
+	else
+	{
+		yValue = inElement.z
+	}
 
-	// offset the x by subtracting the yIndex multiplied by the number of elements in the frame width.
-    uint32_t xOutIndex = 2*(x - xOffset);
+	outElement = rsYuvToRGBA_uchar4(yValue, inElement.y, inElement.w)
 
-    first = rsYuvToRGBA_uchar4(in.x, in.y, in.w);
-    second = rsYuvToRGBA_uchar4(in.z, in.y, in.w);
-
-	// binary & the index to see if the data is part of an even or odd frame
-    yOutIndex &= (uint32_t)0x0001;
-
-	if (yOutIndex) {
-		// This is the second field, so output to Even Allocation
-        rsSetElementAt_uchar4(outputEven, first, xOutIndex);
-        rsSetElementAt_uchar4(outputEven, second, xOutIndex+1);
-    }
-    else
-    {
-        rsSetElementAt_uchar4(outputOdd, first, xOutIndex);
-        rsSetElementAt_uchar4(outputOdd, second, xOutIndex+1);
-    }
-
-
+	rsSetElementAt_uchar4(outputAlloc, outElement, x);
 
 }
 
-void __attribute__((kernel)) convertFromUYVY(uchar4 in, uint32_t x)
+// Converts the even or odd fields (depending on how the firstPixel var is set) from YUYV to RGBA
+void __attribute__((kernel)) convertFieldFromYUYV(int32_t xIn, uint32_t x)
 {
-    uchar4 first;
-    uchar4 second;
+    uchar4 inElement;
+    uchar4 outElement
+    uchar yValue;
 
-    // get the y index by dividing the current position by the frameWidth.  All decimals should
-    // get floored
-    uint32_t yOutIndex = (x / xElements);
+	// We have to divide firstPixel by 2 because
+    int32_t inputIndex = xIn + firstElement;
 
-    // since we are splitting the input allocation into two outputs
-    uint32_t xOffset = (yOutIndex + 1) / 2;
-    xOffset = xOffset * xElements;
+    inElement = rsGetElementAt_uchar4(inAllocation, inputIndex);
 
-    // offset the x by subtracting the yIndex multiplied by the number of elements in the frame width.
-    uint32_t xOutIndex = 2*(x - xOffset);
+	if ((x & (int32_t)0x0001) == 0)
+	{
+		//First pixel in a pair of YUV pixels
+		yValue = inElement.x;
+	}
+	else
+	{
+		yValue = inElement.z;
+	}
 
-    first = rsYuvToRGBA_uchar4(in.y, in.x, in.z);
-    second = rsYuvToRGBA_uchar4(in.w, in.x, in.z);
+	outElement = rsYuvToRGBA_uchar4(yValue, inElement.y, inElement.w)
 
-    // binary & the index to see if the data is part of an even or odd frame
-    yOutIndex &= (uint32_t)0x0001;
+	rsSetElementAt_uchar4(outputAlloc, outElement, x);
 
-    if (yOutIndex) {
-        // This is the second field, so output to Even Allocation
-        rsSetElementAt_uchar4(outputEven, first, xOutIndex);
-        rsSetElementAt_uchar4(outputEven, second, xOutIndex+1);
+}
+
+// Converts whole frame from UYVY to RGBA
+void __attribute__((kernel)) convertFrameFromUYVY(int32_t in, uint32_t x)
+{
+	uchar4 inElement;
+    uchar4 outElement;
+    uchar yValue;
+
+    inElement = rsGetElementAt_uchar4(inAllocation, (x / 2));
+
+	if ((x & (int32_t)0x0001) == 0)
+	{
+		//First pixel in a pair of YUV pixels
+		yValue = inElement.y;
+	}
+	else
+	{
+		yValue = inElement.w;
+	}
+
+	outElement = rsYuvToRGBA_uchar4(yValue, inElement.x, inElement.z)
+
+	rsSetElementAt_uchar4(outputAlloc, outElement, x);
+
+}
+
+// Converts the even or odd fields (depending on how the firstPixel var is set) from UYVY to RGBA
+void __attribute__((kernel)) convertFieldFromUYVY(uchar4 xIn, uint32_t x)
+{
+    uchar4 inElement;
+    uchar4 outElement
+    uchar yValue;
+
+    int32_t inputIndex = xIn + firstElement;
+
+    inElement = rsGetElementAt_uchar4(inAllocation, inputIndex);
+
+    if ((x & (int32_t)0x0001) == 0)
+    {
+        //First pixel in a pair of YUV pixels
+        yValue = inElement.y;
     }
     else
     {
-        rsSetElementAt_uchar4(outputOdd, first, xOutIndex);
-        rsSetElementAt_uchar4(outputOdd, second, xOutIndex+1);
+        yValue = inElement.w;
     }
+
+    outElement = rsYuvToRGBA_uchar4(yValue, inElement.x, inElement.z)
+
+   	rsSetElementAt_uchar4(outputAlloc, outElement, x);
 
 }

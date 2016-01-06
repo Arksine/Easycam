@@ -20,7 +20,7 @@ public class NativeEasyCapture implements EasyCapture {
     private native void getNextFrame(Surface mySurface);
     private native boolean isDeviceAttached();
     private native void stopDevice();
-    private static native String detectDevice(String deviceName);
+    private static native String detectDevice(String deviceLocation);
     
 
     static {
@@ -92,7 +92,7 @@ public class NativeEasyCapture implements EasyCapture {
 
     public boolean isDeviceConnected() {return deviceConnected;}
     
-    static public String autoDetectDev(String dName)
+    static public String findDevice(String dName)
     {
     	return detectDevice(dName);
     }
