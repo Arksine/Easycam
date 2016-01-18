@@ -111,6 +111,9 @@ SurfaceHolder.Callback, Runnable {
         }
         Log.i(TAG, "View resumed");
 
+	    // start streaming now
+        capDevice.streamOn();
+
         mRunning = true;
         mThread = new Thread(this);
         mThread.start();

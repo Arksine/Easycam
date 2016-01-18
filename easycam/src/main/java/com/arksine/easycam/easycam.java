@@ -3,6 +3,7 @@ package com.arksine.easycam;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,8 +16,14 @@ import android.os.Handler;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 public class easycam extends Activity {
 
+	private static String TAG = "easycam";
 
     EasycamView camView;
     SurfaceHolder mHolder;
@@ -48,21 +55,45 @@ public class easycam extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_easycam);
+	    super.onCreate(savedInstanceState);
+	    setContentView(R.layout.activity_easycam);
 
-        SharedPreferences sharedPrefs =
-                PreferenceManager.getDefaultSharedPreferences(this);
+	    SharedPreferences sharedPrefs =
+			    PreferenceManager.getDefaultSharedPreferences(this);
 
-        // Launch a dialog on first run to select the TV standard.  Some devices
-        // have issues with the incorrect standard and do not return an error
-        // when doing so.
-        boolean firstrun = getSharedPreferences("firstrun", MODE_PRIVATE)
-                .getBoolean("pref_key_firstrun", true);
-        getSharedPreferences("firstrun", MODE_PRIVATE).edit()
-                .putBoolean("pref_key_firstrun", false)
-                .commit();
+	    boolean firstrun = getSharedPreferences("firstrun", MODE_PRIVATE)
+			    .getBoolean("pref_key_firstrun", true);
+	    getSharedPreferences("firstrun", MODE_PRIVATE).edit()
+			    .putBoolean("pref_key_firstrun", false)
+			    .commit();
 
+
+	    File fDir = this.getFilesDir();
+	    String jsonPath = fDir.getAbsolutePath() + "/devices.json";
+
+	    // Move devices.json to writeable data if this is the first time the app has been run
+	    if (firstrun) {
+		    try {
+                // TODO:  Should I change the Input and Output streams both in the below function
+                //        and in the JsonManager class to open File types rather than strings?
+			    copyJsonFile(jsonPath);
+		    } catch (Exception e) {
+			    Log.e(TAG, "Unable to copy devices.json");
+			    return;
+		    }
+        }
+
+	    // Initialize the JsonManger
+	    synchronized (JsonManager.lock) {
+		    JsonManager.setFilePath(jsonPath);
+		    if (!JsonManager.initialize())
+			    return;
+	    }
+
+
+		// Launch a dialog on first run to select the TV standard.  Some devices
+	    // have issues with the incorrect standard and do not return an error
+	    // when doing so.
         if (firstrun) {
             Intent intent = new Intent(this,SettingsActivity.class);
             startActivity(intent);
@@ -200,4 +231,24 @@ public class easycam extends Activity {
             camView.setLayoutParams(params);
         }
     }
+
+	private void copyJsonFile(String outFilePath) throws Exception {
+
+		Context myContext = getApplicationContext();
+		InputStream inFile = myContext.getAssets().open("devices.json");
+
+		OutputStream outFile = new FileOutputStream(outFilePath);
+
+		// copy the input file to the output file at the new location
+		byte[] buffer = new byte[1024];
+		int length;
+		while ((length = inFile.read(buffer)) > 0) {
+			outFile.write(buffer, 0, length);
+		}
+
+		outFile.flush();
+		outFile.close();
+		inFile.close();
+
+	}
 }

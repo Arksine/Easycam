@@ -6,48 +6,46 @@
  */
 
 #include "VideoDevice.h"
+#include "util.h"
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-#include <linux/videodev2.h>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
 #include <malloc.h>
 #include <cassert>
 
-VideoDevice::VideoDevice (DeviceInfo devInfo) {
+/**
+ * TODO: Need to go through all functions and make sure that the functionality is correct now that
+ *       I am creating device settings directly, rather than passing enums and determining settings here
+ */
 
-	device_sets = devInfo;
+VideoDevice::VideoDevice (DeviceSettings* dSets) {
 
-	buffer_count = 0;
-	frame_buffers = NULL;
-	file_descriptor = -1;
-
+	devSettings = dSets;
+	bufferCount = 0;
+	frameBuffers = NULL;
+	fileDescriptor = -1;
     curBufferIndex = 0;
-
-	int area = device_sets.frame_width * device_sets.frame_height;
-
 
 }
 
 VideoDevice::~VideoDevice() {
-	stop_device();
+	stopDevice();
 }
 
 /* Open the video device at the named device node.
  *
- * dev_name - the path to a device, e.g. /dev/video0
- * fd - an output parameter to store the file descriptor once opened.
  *
  * Returns SUCCESS_LOCAL if the device was found and opened and ERROR_LOCAL if
  * an error occurred.
  */
-int VideoDevice::open_device() {
+int VideoDevice::openDevice() {
 
-	file_descriptor = v4l2_open(device_sets.device_name);
+	fileDescriptor = v4l2_open(devSettings->location);
 
-	if (file_descriptor == -1)
+	if (fileDescriptor == -1)
 		return ERROR_LOCAL;
 
     return SUCCESS_LOCAL;
@@ -62,16 +60,16 @@ int VideoDevice::open_device() {
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::init_device() {
+int VideoDevice::initDevice() {
     struct v4l2_capability cap;
     struct v4l2_cropcap cropcap;
     struct v4l2_crop crop;
     struct v4l2_format fmt;
-    v4l2_std_id std_id;
+    v4l2_std_id stdId;
     unsigned int min;
 
     CLEAR(cap);
-    if(-1 == xioctl(file_descriptor, VIDIOC_QUERYCAP, &cap)) {
+    if(-1 == xioctl(fileDescriptor, VIDIOC_QUERYCAP, &cap)) {
         if(EINVAL == errno) {
 
             return ERROR_LOCAL;
@@ -91,93 +89,30 @@ int VideoDevice::init_device() {
     }
 
 
- /*  Input selection isn't helping EMPIA or SOMAGIC.  Commenting out until further research is done
-    // Need to set empia devices to composite input
-    if(device_sets.device_type == EMPIA) {
-        int input = 2;
-
-        if (-1 == xioctl (file_descriptor, VIDIOC_S_INPUT, &input)) {
-                return errnoexit("VIDIOC_S_INPUT");
-            }
-    }
-
-    to be sure none of this is needed.
-    Commented Somagic selection out for the time being.  Didn't seem to help much.
-
-
-     * Info:
-     * Somagic based devices do NOT like to start streaming before input is received
-     * Iterate through
-
-    if(device_sets.device_type == SOMAGIC)
-    {
-    	struct timeval start, end, waitTime;
-    	waitTime.tv_sec = 10;
-    	waitTime.tv_usec = 0;
-
-    	struct v4l2_input inputInfo;
-    	bool signalDetected = false;
-    	int input;
-
-
-    	 * Iterate through the available inputs for 10 seconds, looking for a signal.
-    	 * If none is found we will exit device initialization and return an error
-
-    	gettimeofday(&start, NULL);
-    	while (!signalDetected && (end.tv_sec < (start.tv_sec + waitTime.tv_sec))) {
-			input = 0;
-			CLEAR(inputInfo);
-			while (-1 != xioctl (file_descriptor, VIDIOC_ENUMINPUT, &inputInfo))
-			{
-
-				if (!(inputInfo.status & V4L2_IN_ST_NO_SIGNAL)) {
-
-					if (-1 == xioctl (file_descriptor, VIDIOC_S_INPUT, &input)) {
-						return errnoexit("VIDIOC_S_INPUT");
-					}
-
-					signalDetected = true;
-					break;
-				}
-
-				CLEAR(inputInfo);
-				input++;
-			}
-			sleep(1);
-			gettimeofday(&end, NULL);
-    	}
-
-    	if (!signalDetected) {
-
-    		return errnoexit("Video Source Not Found: SOMAGIC");
-    	}
-    }*/
-
-
-    CLEAR(std_id);
-	switch(device_sets.standard_id) {
-	case NTSC:
-		std_id = V4L2_STD_NTSC;
-		break;
-	case PAL:
-		std_id = V4L2_STD_PAL;
-		break;
-	default:
-		std_id = V4L2_STD_NTSC;
+	// Set the input if required
+	if (devSettings->input > -1)
+	{
+		int input = devSettings->input;
+		if (-1 == xioctl (fileDescriptor, VIDIOC_S_INPUT, &input)) {
+			return errnoexit("VIDIOC_S_INPUT");
+		}
 	}
 
-	if(-1 == xioctl(file_descriptor, VIDIOC_S_STD, &std_id)) {
+    CLEAR(stdId);
+	stdId = devSettings->videoStandard;
+
+	if(-1 == xioctl(fileDescriptor, VIDIOC_S_STD, &stdId)) {
 		   return errnoexit("VIDIOC_S_STD");
 	   }
 
     CLEAR(cropcap);
     cropcap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-    if(0 == xioctl(file_descriptor, VIDIOC_CROPCAP, &cropcap)) {
+    if(0 == xioctl(fileDescriptor, VIDIOC_CROPCAP, &cropcap)) {
         crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         crop.c = cropcap.defrect;
 
-        if(-1 == xioctl(file_descriptor, VIDIOC_S_CROP, &crop)) {
+        if(-1 == xioctl(fileDescriptor, VIDIOC_S_CROP, &crop)) {
             switch(errno) {
                 case EINVAL:
                     break;
@@ -190,46 +125,36 @@ int VideoDevice::init_device() {
     CLEAR(fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-    fmt.fmt.pix.width = device_sets.frame_width;
-    fmt.fmt.pix.height = device_sets.frame_height;
+    fmt.fmt.pix.width = devSettings->frameWidth;
+    fmt.fmt.pix.height = devSettings->frameHeight;
+	fmt.fmt.pix.pixelformat = devSettings->pixelFormat;
+    fmt.fmt.pix.field = devSettings->field;
 
-    switch(device_sets.color_format){
-        case YUYV:
-            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-            break;
-        case UYVY:
-            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
-            break;
-        case RGB565:
-            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
-            break;
-        default:
-            fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-    }
-    fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
-
-    if(-1 == xioctl(file_descriptor, VIDIOC_S_FMT, &fmt)) {
+    if(-1 == xioctl(fileDescriptor, VIDIOC_S_FMT, &fmt)) {
         return errnoexit("VIDIOC_S_FMT");
     }
 
+	// TODO:  We should compare the values returned from IO control to the values we passed to it.
+	//        If they were not accepted and default values were sent back we need to know about it
+	//        so rendering functionality isn't broken.
 
-    return init_mmap();
+
+    return initMemmap();
 }
 
 /* Initialize memory mapped buffers for video frames.
  *
- * fd - a valid file descriptor pointing to the camera device.
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::init_mmap() {
+int VideoDevice::initMemmap() {
 	struct v4l2_requestbuffers req;
 	CLEAR(req);
-	req.count = device_sets.num_buffers;
+	req.count = devSettings->numBuffers;
 	req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	req.memory = V4L2_MEMORY_MMAP;
 
-	if(-1 == xioctl(file_descriptor, VIDIOC_REQBUFS, &req)) {
+	if(-1 == xioctl(fileDescriptor, VIDIOC_REQBUFS, &req)) {
 		if(EINVAL == errno) {
 			LOGE("device does not support memory mapping");
 			return ERROR_LOCAL;
@@ -243,64 +168,62 @@ int VideoDevice::init_mmap() {
 		return ERROR_LOCAL;
 	}
 
-	frame_buffers = (CaptureBuffer *)calloc(req.count, sizeof(*frame_buffers));
-	if(!frame_buffers) {
+	frameBuffers = (CaptureBuffer *)calloc(req.count, sizeof(*frameBuffers));
+	if(!frameBuffers) {
 		LOGE("Out of memory");
 		return ERROR_LOCAL;
 	}
 
-	for(buffer_count = 0; buffer_count < req.count; ++buffer_count) {
+	for(bufferCount = 0; bufferCount < req.count; ++bufferCount) {
 		struct v4l2_buffer buf;
 		CLEAR(buf);
 
 		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		buf.memory = V4L2_MEMORY_MMAP;
-		buf.index = buffer_count;
+		buf.index = bufferCount;
 
 		if(-1 == xioctl(file_descriptor, VIDIOC_QUERYBUF, &buf)) {
 			return errnoexit("VIDIOC_QUERYBUF");
 		}
 
-		frame_buffers[buffer_count].length = buf.length;
-		frame_buffers[buffer_count].start = mmap(NULL, buf.length,
-		                                         PROT_READ | PROT_WRITE, MAP_SHARED, file_descriptor, buf.m.offset);
+		frameBuffers[bufferCount].length = buf.length;
+		frameBuffers[bufferCount].start = mmap(NULL, buf.length,
+		                                         PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, buf.m.offset);
 
-		if(MAP_FAILED == frame_buffers[buffer_count].start) {
+		if(MAP_FAILED == frameBuffers[bufferCount].start) {
 			return errnoexit("mmap");
 		}
 	}
 
-	LOGI("Frame Buffer Length (bytes): %i", frame_buffers[0].length);
+	LOGI("Frame Buffer Length (bytes): %i", frameBuffers[0].length);
 
 	return SUCCESS_LOCAL;
 }
 
 /* Begins capturing video frames from a previously initialized device.
  *
- * The buffers in FRAME_BUFFERS are handed off to the device.
- *
- * fd - a valid file descriptor to the device.
- *
+ * The buffers in frameBuffers are handed off to the device.
+ * *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::start_capture() {
+int VideoDevice::startCapture() {
     unsigned int i;
     enum v4l2_buf_type type;
 
-    for(i = 0; i < buffer_count; ++i) {
+    for(i = 0; i < bufferCount; ++i) {
         struct v4l2_buffer buf;
         CLEAR(buf);
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
         buf.index = i;
 
-        if(-1 == xioctl(file_descriptor, VIDIOC_QBUF, &buf)) {
+        if(-1 == xioctl(fileDescriptor, VIDIOC_QBUF, &buf)) {
             return errnoexit("VIDIOC_QBUF");
         }
     }
 
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if(-1 == xioctl(file_descriptor, VIDIOC_STREAMON, &type)) {
+    if(-1 == xioctl(fileDescriptor, VIDIOC_STREAMON, &type)) {
         return errnoexit("VIDIOC_STREAMON");
     }
 
@@ -315,22 +238,22 @@ int VideoDevice::start_capture() {
  * Returns a pointer to the latest buffer read into memory from the device
  *
  */
-CaptureBuffer * VideoDevice::process_capture() {
+CaptureBuffer * VideoDevice::processCapture() {
 
-	if(file_descriptor == -1) {
+	if(fileDescriptor == -1) {
 		return NULL;
 	}
 
 	for(;;) {
 		fd_set fds;
 		FD_ZERO(&fds);
-		FD_SET(file_descriptor, &fds);
+		FD_SET(fileDescriptor, &fds);
 
 		struct timeval tv;
 		tv.tv_sec = 2;
 		tv.tv_usec = 0;
 
-		int result = select(file_descriptor + 1, &fds, NULL, NULL, &tv);
+		int result = select(fileDescriptor + 1, &fds, NULL, NULL, &tv);
 		if(-1 == result) {
 			if(EINTR == errno) {
 				continue;
@@ -342,26 +265,27 @@ CaptureBuffer * VideoDevice::process_capture() {
 			break;
 		}
 
-		if(read_frame() == 1) {
-			return &frame_buffers[curBufferIndex];
+		if(readFrame() == 1) {
+			return &frameBuffers[curBufferIndex];
 		}
 	}
 
 	return NULL;
 }
 
-/* Read a single frame of video from the device into a buffer.
+/* Read a single frame of video from the device into a buffer and sets the index of the buffer
+ * read.
  *
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::read_frame() {
+int VideoDevice::readFrame() {
     struct v4l2_buffer buf;
     CLEAR(buf);
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
 
-    if(-1 == xioctl(file_descriptor, VIDIOC_DQBUF, &buf)) {
+    if(-1 == xioctl(fileDescriptor, VIDIOC_DQBUF, &buf)) {
         switch(errno) {
             case EAGAIN:
                 return 0;
@@ -371,13 +295,13 @@ int VideoDevice::read_frame() {
         }
     }
 
-    assert(buf.index < buffer_count);
+    assert(buf.index < bufferCount);
 
 
     // convert and copy the buffer for rendering
     curBufferIndex = (int)(buf.index);
 
-    if(-1 == xioctl(file_descriptor, VIDIOC_QBUF, &buf)) {
+    if(-1 == xioctl(fileDescriptor, VIDIOC_QBUF, &buf)) {
     	return errnoexit("VIDIOC_QBUF");
     }
 
@@ -385,10 +309,10 @@ int VideoDevice::read_frame() {
 }
 
 /* Stop capturing, uninitialize the device and free all memory. */
-void VideoDevice::stop_device() {
-	stop_capture();
-	uninit_device();
-	close_device();
+void VideoDevice::stopDevice() {
+	stopCapture();
+	uninitDevice();
+	closeDevice();
 
 }
 
@@ -396,9 +320,9 @@ void VideoDevice::stop_device() {
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::stop_capture() {
+int VideoDevice::stopCapture() {
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if(-1 != file_descriptor && -1 == xioctl(file_descriptor, VIDIOC_STREAMOFF, &type)) {
+    if(-1 != fileDescriptor && -1 == xioctl(fileDescriptor, VIDIOC_STREAMOFF, &type)) {
         return errnoexit("VIDIOC_STREAMOFF");
     }
 
@@ -409,39 +333,37 @@ int VideoDevice::stop_capture() {
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::uninit_device() {
-	for (unsigned int i = 0; i < buffer_count; ++i) {
-		if (-1 == munmap(frame_buffers[i].start, frame_buffers[i].length)) {
+int VideoDevice::uninitDevice() {
+	for (unsigned int i = 0; i < bufferCount; ++i) {
+		if (-1 == munmap(frameBuffers[i].start, frameBuffers[i].length)) {
 			return errnoexit("munmap");
 		}
 	}
 
-	free(frame_buffers);
+	free(frameBuffers);
 	return SUCCESS_LOCAL;
 }
 
 
 /* Close a file descriptor.
  *
- * fd - a pointer to the descriptor to close, which will be set to -1 on success
- *      or fail.
  *
  * Returns SUCCESS_LOCAL if no errors, otherwise ERROR_LOCAL.
  */
-int VideoDevice::close_device() {
+int VideoDevice::closeDevice() {
 
-	return v4l2_close(file_descriptor);
+	return v4l2_close(fileDescriptor);
 }
 
 
 /**
- * detect_device - Helper function to attempt to find a specific device
+ *   Helper function to attempt to find a specific device
  */
-const char* VideoDevice::detect_device(const char* devLocation) {
+const char* VideoDevice::detectDevice(const char* devLocation) {
 	struct v4l2_capability cap;
 	int fd = -1;
 
-	fd = v4l2_open(dev_name);
+	fd = v4l2_open(devLocation);
 	if (fd == -1)
 	{
 		return "NO_DEVICE";
@@ -468,30 +390,30 @@ const char* VideoDevice::detect_device(const char* devLocation) {
 		return "NO_DEVICE";
 	}
 
-	return cap.driver;
+	return (const char*)cap.driver;
 }
 
 
 // Helper functions to open and close devices, to keep from repeating code
-int VideoDevice::v4l2_open(const char* dev_name) {
+int VideoDevice::v4l2_open(const char* devLocation) {
 
 	struct stat st;
 	int fd = - 1;
-	if(-1 == stat(dev_name, &st)) {
-		LOGE("Cannot identify '%s': %d, %s", dev_name, errno, strerror(errno));
+	if(-1 == stat(devLocation, &st)) {
+		LOGE("Cannot identify '%s': %d, %s", devLocation, errno, strerror(errno));
 		return ERROR_LOCAL;
 	}
 
 	if(!S_ISCHR(st.st_mode)) {
-		LOGE("%s is not a valid device", dev_name);
+		LOGE("%s is not a valid device", devLocation);
 		return ERROR_LOCAL;
 	}
 
-	fd = open(dev_name, O_RDWR | O_NONBLOCK, 0);
+	fd = open(devLocation, O_RDWR | O_NONBLOCK, 0);
 	if(-1 == fd) {
-		LOGE("Cannot open '%s': %d, %s", dev_name, errno, strerror(errno));
+		LOGE("Cannot open '%s': %d, %s", devLocation, errno, strerror(errno));
 		if(EACCES == errno) {
-			LOGE("Insufficient permissions on '%s': %d, %s", dev_name, errno,
+			LOGE("Insufficient permissions on '%s': %d, %s", devLocation, errno,
 					strerror(errno));
 		}
 		return ERROR_LOCAL;

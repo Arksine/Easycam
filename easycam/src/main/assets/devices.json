@@ -1,0 +1,50 @@
+[
+  {
+    "driver": "em28xx",
+    "framewidth": 640,
+    "frameheight":{
+      "ntsc":480,
+      "pal":576
+    },
+    "numbuffers":2,
+    "pixelformat":"YUYV",
+    "fieldtype":"INTERLACED",
+    "input":-1
+  },
+  {
+    "driver": "usbtv",
+    "framewidth": 720,
+    "frameheight": {
+      "ntsc": 480,
+      "pal": 576
+    },
+    "numbuffers": 2,
+    "pixelformat": "YUYV",
+    "fieldtype":"INTERLACED",
+    "input": -1
+  },
+  {
+    "driver": "stk1160",
+    "framewidth": 720,
+    "frameheight": {
+      "ntsc": 480,
+      "pal": 576
+    },
+    "numbuffers": 2,
+    "pixelformat": "UYVY",
+    "fieldtype":"INTERLACED",
+    "input": -1
+  },
+  {
+    "driver": "smi2021",
+    "framewidth": 720,
+    "frameheight": {
+      "ntsc": 484,
+      "pal": 576
+    },
+    "numbuffers": 4,
+    "pixelformat": "UYVY",
+    "fieldtype":"INTERLACED",
+    "input": -1
+  }
+]

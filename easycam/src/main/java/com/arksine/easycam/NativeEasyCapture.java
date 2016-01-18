@@ -12,11 +12,12 @@ public class NativeEasyCapture implements EasyCapture {
 
 	
     private static String TAG = "NativeEasycam";
-    private EasycapSettings deviceSets;
+    private DeviceInfo currentDevice;
     boolean deviceConnected = false;
 
-    private native int startDevice(String cacheDir, String deviceName,
-                                   int width, int height, int devType, int regionStd, int numBufs);
+
+    private native boolean startDevice(String cacheDir, DeviceInfo dInfo);
+	private native boolean startStreaming();  //TODO:  need to implement this funciton in native code
     private native void getNextFrame(Surface mySurface);
     private native boolean isDeviceAttached();
     private native void stopDevice();
@@ -28,44 +29,53 @@ public class NativeEasyCapture implements EasyCapture {
     }
 
     public NativeEasyCapture(SharedPreferences sharedPrefs, Context context) {
-    	
-    	deviceSets = new EasycapSettings(sharedPrefs);
-        // allocate an array of bytes to hold the entire size of the bitmap
-        // at 32 bits per pixel
 
-        boolean useToasts = sharedPrefs.getBoolean("pref_key_layout_toasts", true);
-        if (useToasts) {
-            // Lets show a toast telling the user what device has been set
-            CharSequence text = "Device set as " + deviceSets.devType.first
-                    + " at " + deviceSets.devName;
-            int duration = Toast.LENGTH_SHORT;
-            Toast toast = Toast.makeText(context, text, duration);
-            toast.show();
-        }
+	    boolean useToasts = sharedPrefs.getBoolean("pref_key_layout_toasts", true);
 
-        connect(context);
+	    if (getDeviceSettings(sharedPrefs)) {
+
+		    if (useToasts) {
+			    // Show a toast telling the user what device has been set
+			    CharSequence text = "Device set as " + currentDevice.getDriver()
+					    + " at " + currentDevice.getLocation();
+			    int duration = Toast.LENGTH_SHORT;
+			    Toast toast = Toast.makeText(context, text, duration);
+			    toast.show();
+		    }
+
+		    connect(context);
+	    } else {
+
+		    Log.e(TAG, "Unable to load device settings.");
+
+		    if (useToasts) {
+			    CharSequence text = "Unable to load device.";
+			    int duration = Toast.LENGTH_SHORT;
+			    Toast toast = Toast.makeText(context, text, duration);
+			    toast.show();
+		    }
+	    }
     }
+
 
     private void connect(Context context) {
         boolean deviceReady = true;
 
-        File deviceFile = new File(deviceSets.devName);
+        File deviceFile = new File(currentDevice.getLocation());
         if(deviceFile.exists()) {
             if(!deviceFile.canRead()) {
-                Log.d(TAG, "Insufficient permissions on " + deviceSets.devName +
+                Log.d(TAG, "Insufficient permissions on " + currentDevice.getLocation() +
                         " -- does the app have the CAMERA permission?");
                 deviceReady = false;
             }
         } else {
-            Log.w(TAG, deviceSets.devName + " does not exist");
+            Log.w(TAG, currentDevice.getLocation() + " does not exist");
             deviceReady = false;
         }
 
         if(deviceReady) {
-            Log.i(TAG, "Preparing camera with device name " + deviceSets.devName);
-            if(-1 == startDevice(context.getCacheDir().toString(), deviceSets.devName,
-                    deviceSets.frameWidth, deviceSets.frameHeight, deviceSets.devType.second,
-                    deviceSets.devStandard.second, deviceSets.numBuffers)) {
+            Log.i(TAG, "Preparing camera with device name " + currentDevice.getLocation());
+            if(startDevice(context.getCacheDir().toString(), currentDevice)) {
 
                 deviceConnected = false;
             }
@@ -76,6 +86,49 @@ public class NativeEasyCapture implements EasyCapture {
 
         }
     }
+
+    private boolean getDeviceSettings (SharedPreferences sharedPrefs) {
+
+        String prefSelectDevice = sharedPrefs.getString("pref_key_select_device", "NO_DEVICE");
+        if (prefSelectDevice.compareTo("NO_DEVICE") == 0){
+	        Log.e(TAG, "No device selected in preferences");
+            // No device selected, exit.
+            currentDevice = null;
+            return false;
+        }
+
+        String prefTVStandard = sharedPrefs.getString("pref_key_select_standard", "NTSC");
+        DeviceInfo.DeviceStandard std = DeviceInfo.DeviceStandard.valueOf(prefTVStandard);
+
+        // Split the string intot two parts.  The first part is the driver name, the second is the location
+        String[] devAndLoc = prefSelectDevice.split(":");
+
+        currentDevice = JsonManager.getDevice(devAndLoc[0], std);
+
+        if (currentDevice == null) {
+	        Log.e(TAG, "Unable to find device " + devAndLoc[0] + " in devices.json");
+            // Device was not in devices.json, exit
+            return false;
+        }
+
+        // Set the TV Standard, device location, and deinterlace method as they are not device specific and thus
+        // not stored in devices.json
+        currentDevice.setDevStd(std);
+        currentDevice.setLocation(devAndLoc[1]);
+
+        String deintMethod = sharedPrefs.getString("pref_key_deinterlace_method", "NONE");
+	    currentDevice.setDeinterlace(DeviceInfo.DeintMethod.valueOf(deintMethod));
+
+        //Logging for debugging
+        Log.i(TAG, "Currently set device name: " + currentDevice.getDriver());
+        Log.i(TAG, "Currently set device location: " + currentDevice.getLocation());
+        Log.i(TAG, "Currently set tv standard: " + currentDevice.getDevStd().toString());
+        Log.i(TAG, "Currently set frame width: " + currentDevice.getFrameWidth());
+        Log.i(TAG, "Currently set frame height: " + currentDevice.getFrameHeight());
+
+	    return true;
+    }
+
 
     public void getFrame(Surface mySurface) {
 
@@ -91,9 +144,15 @@ public class NativeEasyCapture implements EasyCapture {
     }
 
     public boolean isDeviceConnected() {return deviceConnected;}
+
+	// TODO:  need to call this in EasycamView prior to capturing frames
+	public boolean streamOn() {
+        return startStreaming();
+	}
     
     static public String findDevice(String dName)
     {
     	return detectDevice(dName);
     }
+
 }
