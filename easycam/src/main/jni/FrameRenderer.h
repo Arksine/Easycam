@@ -32,10 +32,9 @@ private:
 	 */
 
     DeviceSettings* devSettings;
-
+	int outputFrameHeight;  
     
-    int inputFrameHeight;	// height of the incoming frame in pixels
-	int outputFrameHeight;	// height of the outgoing frame in pixels
+    
 
     // TODO: Need to set these variables in the constructor
     // These are used for bob and discard deinterlacing.  They tell the renderscript kernels
@@ -43,22 +42,22 @@ private:
     // second frame.
     int firstFrameElementIndex;
     int secondFrameElementIndex;
-
-    bool interleaved;  // If the frame is interleaved, true.  Otherwise the frame is either sequential or progressive
-
-	int32_t framePixelFormat;  // The pixel format used by ANativeWindow
+	
+	int32_t frameWindowFormat;  // The pixel format used by ANativeWindow
 
 	sp<RS> rs;
     sp<Allocation> inputAlloc;
     sp<Allocation> outputAlloc;
-    sp<Allocation> pixelAlloc;   // Allocation that represents each pixel in the input buffer
+    sp<Allocation> pixelAlloc;		// Allocation that represents each pixel in the input buffer
+	sp<Allocation> intrinsAlloc;	// Allocation that the YUV Intrinsic writes to.
 
     ScriptC_convert* script;
+	sp<ScriptIntrinsicYuvToRGB> intrinsic;
 
 	// TODO:  We need multiple init Renderscript functions.  The initilization depends on if/how
 	//        we deinterlace (ie the size of the allocations differ)
-	void initRenderscript(JNIEnv* jenv, jstring rsPath);
-	void initYuvIntrinsic(JNIEnv* jenv, jstring rsPath);
+	void initRenderscript(int inputFrameHeight, bool interleaved, RSYuvFormat yuvFmt);
+	void initYuvIntrinsic(RSYuvFormat yuvFmt, int inputFrameHeight, int intrinsFrameHeight);
 
     // Function pointer to store which call we need to make, depending on YUV type
     void (FrameRenderer::* processFrame)(CaptureBuffer*, ANativeWindow*);

@@ -6,13 +6,13 @@
 #include "util.h"
 
 #define INITRS(process, forEach)					\
-	initRenderscript(jenv, rsPath);					\
+	initRenderscript(inputFrameHeight, interleaved); \
 	processFrame = &FrameRenderer:: ## process;		\
 	executeKernel = &ScriptC_convert:: ## forEach;
 
 /*
 *	deint - deinterlacing method.  IE: NONE, DISCARD, BOB, BLEND.
-*	ft - field type.  Typically Frame, it will be Field if we are doing deinterlacing on an interleaved frame
+*	ft - field type.  Typically Frame, it will be Field if we are deinterlacing
 */
 #define COLORSWITCH(method, ft)													\
 	switch(devSettings->pixelFormat){											\
@@ -31,11 +31,11 @@
 				processFrame = &FrameRenderer::processRGB_NONE;					\
 			}																	\
 			else {																\
-				INITRS(processRS_ ## method, forEach_separate ## ft ## FromRGB)	\
+/*				INITRS(processRS_ ## method, forEach_separate ## ft ## FromRGB)	\ */ \
 			}																	\
 			break;																\
 		default:																\
-			INITRS(process ## method, ft ## FromYUYV)							\
+			INITRS(processRS_ ## method, forEach_convert ## ft ## FromYUYV)		\
 	}
 
 
@@ -45,19 +45,26 @@
 FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets) {
 
 	devSettings = dSets;
-	int bufLength;  // number of bytes in buffer, depends on color space
 
-	//TODO:  We need to create functions and set them to function pointers to support
-	//       the various types of deinterlacing.  The FieldType also affects deinterlacing
-	//       and rendering, so functionality to account for that is necessary as well.
+	int inputFrameHeight;		// height of the incoming frame in pixels
+
+	bool interleaved = false;   //
+	bool packedYUV = false;
+	RSYuvFormat yuvFmt;
+
+	// intialize the renderscript reference
+	const char* path = jenv->GetStringUTFChars(rsPath, NULL);
+	rs = new RS();
+	rs->init(path);
+	jenv->ReleaseStringUTFChars(rsPath, path);
 
 	// Set the frame output pixel format, which will always be RGBA8888 unless the
 	// input colorspace is RGB565
 	if (devSettings->pixelFormat == V4L2_PIX_FMT_RGB565) {
-		framePixelFormat = WINDOW_FORMAT_RGB_565;
+		frameWindowFormat = WINDOW_FORMAT_RGB_565;
 	}
 	else {
-		framePixelFormat = WINDOW_FORMAT_RGBA_8888;
+		frameWindowFormat = WINDOW_FORMAT_RGBA_8888;
 	}
 
 	switch(devSettings->field) {
@@ -67,7 +74,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;   // not used
-			// init renderscript, color conversion only
+			COLORSWITCH(NONE, Frame)
 			break;
 		case V4L2_FIELD_TOP:	// Only half frame recd, no deinterlacing allowed
 			interleaved = false;
@@ -75,7 +82,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight / 2;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;
-			// init renderscript, color conversion only
+			COLORSWITCH(NONE, Frame)
 			break;
 		case V4L2_FIELD_BOTTOM:	// Only half frame recd, no deinterlacing allowed
 			interleaved = false;
@@ -83,7 +90,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight / 2;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;
-			// init renderscript, color conversion only
+			COLORSWITCH(NONE, Frame)
 			break;
 		case V4L2_FIELD_INTERLACED:
 			interleaved = true;
@@ -93,37 +100,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 					outputFrameHeight = devSettings->frameHeight;
 					firstFrameElementIndex = 0;
 					secondFrameElementIndex = 0;
-					switch(devSettings->pixelFormat){
-						case V4L2_PIX_FMT_YUYV:
-							framePixelFormat = WINDOW_FORMAT_RGBA_8888;
-							//processFrame = &FrameRenderer::processYUYV_NONE;
-							//initRenderscript(jenv, rsPath);
-							//executeKernel = &ScriptC_convert::forEach_convertFrameFromYUYV;
-							INITRS(processRS_NONE, forEach_convertFrameFromYUYV)
-							break;
-						case V4L2_PIX_FMT_UYVY:
-							framePixelFormat = WINDOW_FORMAT_RGBA_8888;
-							processFrame = &FrameRenderer::processUYVY_NONE;
-							initRenderscript(jenv, rsPath);
-							break;
-						case V4L2_PIX_FMT_NV21:
-							framePixelFormat = WINDOW_FORMAT_RGBA_8888;
-							processFrame = &FrameRenderer::processNV21_NONE;
-							break;
-						case V4L2_PIX_FMT_YVU420:
-							framePixelFormat = WINDOW_FORMAT_RGBA_8888;
-							processFrame = &FrameRenderer::processYV12_NONE;
-							break;
-						case V4L2_PIX_FMT_RGB565:
-							// no need to init renderscript here as conversion is not necessary
-							framePixelFormat = WINDOW_FORMAT_RGB_565;
-							processFrame = &FrameRenderer::processRGB_NONE;
-							break;
-						default:
-							framePixelFormat = WINDOW_FORMAT_RGBA_8888;
-							processFrame = &FrameRenderer::processYUYV_NONE;
-							initRenderscript(jenv, rsPath);
-					}
+					COLORSWITCH(NONE, Frame)
 					break;
 				case DISCARD:
 					outputFrameHeight = devSettings->frameHeight / 2;
@@ -135,6 +112,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 						firstFrameElementIndex = 0;
 						secondFrameElementIndex = devSettings->frameWidth / 2;
 					}
+					COLORSWITCH(DISCARD, Field)
 					break;
 				case BOB:
 					outputFrameHeight = devSettings->frameHeight / 2;
@@ -146,10 +124,11 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 						firstFrameElementIndex = 0;
 						secondFrameElementIndex = devSettings->frameWidth / 2;
 					}
-
+					COLORSWITCH(BOB, Field)
 					break;
 				//case BLEND:
 					//outputFrameHeight = devSettings->frameHeight;
+					//COLORSWITCH(BLEND, Blend?)
 					//break;
 				default:
 					break;			
@@ -182,6 +161,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			interleaved = false;
 			inputFrameHeight = devSettings->frameHeight / 2;
 			outputFrameHeight = devSettings->frameHeight / 2;
+			COLORSWITCH(NONE, Frame)
 			break;
 		default:
 			break;
@@ -193,89 +173,133 @@ FrameRenderer::~FrameRenderer() {
 
 }
 
-void FrameRenderer::initRenderscript(JNIEnv* jenv, jstring rsPath) {
+void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSYuvFormat yuvFmt = RS_YUV_NONE) {
 
-	int inAllocWidth = devSettings->frameWidth / 2;  // The input allocation has half the number of elements as there are pixels
+	// Determine is the incoming format is packed YUV (YV12 or NV12)
+	bool packedYUV = (yuvFmt != RS_YUV_NONE);
 
-	// TODO:  The outAllocWidth is half width when dealing with RGB565
-	int outAllocWidth = devSettings->frameWidth;     // number of output elements = number of pixels
+	// There are 32 bits per element for the input allocation, 
+	// but only 16 bits per pixel, so we divide framewidth by 2
+	// TODO: If we allow other input formats, such as ARGB32, this needs to be updated
+	int inAllocWidth = devSettings->frameWidth / 2;  	
+	int outAllocWidth;
+	if (devSettings->pixelFormat == V4L2_PIX_FMT_RGB565) {  
+	
+		// RGB565 output is only 16 bits per pixel
+		outAllocWidth = devSettings->frameWidth / 2;     
+	}
+	else {			
 
-	// Determine the size for the input Allocations.  There are 4 bytes in each element,
-	// and the input buffer contains 2 bytes per pixel (YUV compression)
-	int inAllocationSize = inAllocWidth * inputFrameHeight;
-
-	// There is 1 element per pixel, but we are only storing half of the frame in each dimension
+		// output is RGBA8888, number of elements = number of pixels
+		outAllocWidth = devSettings->frameWidth;  
+	}
+	 	
+	int intrinsAllocationSize;
+	int inAllocationSize;
+	if (packedYUV) {
+		// The intrinsic outputs RGBA, so its one elemenet per pixel
+		intrinsAllocationSize = outAllocWidth * inputFrameHeight;
+		
+		// TODO:  For rigth now this isnt used
+		inAllocationSize = devSettings->frameWidth * inputFrameHeight;
+	}
+	else {
+		intrinsAllocationSize = 0;		// there is no intrinsic allocation, so no size is set
+		inAllocationSize = inAllocWidth * inputFrameHeight;
+	}
 	int outAllocationSize = outAllocWidth * outputFrameHeight;
+	
 
-	// get the calling activities path to its Cache Directory, necessary to init renderscript
-	const char* path = jenv->GetStringUTFChars(rsPath, NULL);
-	rs = new RS();
-	rs->init(path);
-	jenv->ReleaseStringUTFChars(rsPath, path);
-
-
-	sp<const Element> inElement = Element::U8_4(rs);
-	sp<const Element> outElement = Element::RGBA_8888(rs);
-	sp<const Element> pixelElement = Element::I32(rs);
-
-	// create and fill a backing store for the pixel allocation
+	// create a backing store for the pixel allocation
 	int xVal = 0;
 	int32_t* pixelBuf = new int32_t[outAllocationSize];
 
-	/**
-	 * The for loop below calculates the X value of the input allocation.
-	 *
-	 * TODO: The for loops below only work for 16-bit input formats, however we aren't currently allowing 
-	 *	     input formats containing 24 or 32 bits per pixel.  If I change that I probably don't need
-	 *		 a pixel allocation anyway, as they are already working on one element per pixel.
-	 *  
-	 */
+	int pixelBufWidth = outAllocWidth;
+	int pixelBufHeight = outputFrameHeight;
+	int pixelsPerElement;
+	if (packedYUV || devSettings->pixelFormat == V4L2_PIX_FMT_RGB565)
+		pixelsPerElement = 1;
+	else
+		pixelsPerElement = 2;
+
+	// Populate the pixel allocation backing store with the current input index we want to work on.
 	if (interleaved) {
 		// Calculate the x values for the input allocation in interleaved fields
-		for (int y=0; y < (outputFrameHeight/2); y++) {
+		for (int y=0; y < pixelBufHeight; y++) {
 
-			for (int x=0; x < outAllocWidth; x++) {
-				xVal = (x + ((2*outAllocWidth)*y))/2; 			
-				pixelBuf[x + (y*outAllocWidth)] = xVal;
+			for (int x=0; x < pixelBufWidth; x++) {
+
+				xVal = (x + ((2*pixelBufWidth)*y))/pixelsPerElement; 	
+				pixelBuf[x + (y*pixelBufWidth)] = xVal;
 			}
 		}
 		
 	}
 	else {
 		// Calculate the x values for the input allocation in sequential fields
-		for (int y=0; y < outputFrameHeight; y++) {
+		for (int y=0; y < pixelBufHeight; y++) {
 
-			for (int x=0; x < outAllocWidth; x++) {
-				xVal = (x + (outAllocWidth*y))/2; 
-				pixelBuf[x + (y*outAllocWidth)] = xVal;
+			for (int x=0; x < pixelBufWidth; x++) {
+								
+				xVal = (x + (pixelBufWidth*y))/pixelsPerElement; 
+				pixelBuf[x + (y*pixelBufWidth)] = xVal;
 			}
-		}
+		}		
+	}
+
+	sp<const Element> pixelElement = Element::I32(rs);
+	pixelAlloc = Allocation::createSized(rs, pixelElement, outAllocationSize);
+	pixelAlloc->copy1DFrom((void*)pixelBuf);
+	delete [] pixelBuf;
+
+	script = new ScriptC_convert(rs);
+	sp<const Element> outElement = Element::RGBA_8888(rs);
+
+	if (packedYUV) {
+		sp<const Element> inElement = Element::createPixel(rs, RS_TYPE_UNSIGNED_8, RS_KIND_PIXEL_YUV);
+		sp<const Type::Builder> yuvBuilder = Type.Builder(rs, inElement);
+		yuvBuilder.setX(devSettings->frameWidth);
+		yuvBuilder.setY(inputFrameHeight);
+		yuvBuilder.setYuvFormat(yuvFmt);
+		sp<const Type> yuvType = yuvBuilder.create();
+
+		inputAlloc = Allocation::createTyped(rs, yuvType);
+		intrinsAlloc = Allocation::createSized(rs, outElement, intrinsAllocationSize);
+		intrinsic = ScriptIntrinsicYuvToRGB::create(rs, outElement);
+		intrinsic->setInput(inputAlloc);
+		script->set_inAllocation(intrinsAlloc);
+	}
+	else {
+		sp<const Element> inElement = Element::U8_4(rs);
+		inputAlloc = Allocation::createSized(rs, inElement, inAllocationSize);
+		script->set_inAllocation(inputAlloc);
 		
 	}
 
-	pixelAlloc->copy1DFrom((void*)pixelBuf);
-
-	delete [] pixelBuf;
-
-	
-
-	inputAlloc = Allocation::createSized(rs, inElement, inAllocationSize);
 	outputAlloc = Allocation::createSized(rs, outElement, outAllocationSize);
-	pixelAlloc = Allocation::createSized(rs, pixelElement, outAllocationSize);
+	script->set_outAllocation(outputAlloc);
+
+}
+
+void FrameRenderer::initYuvIntrinsic(RSYuvFormat yuvFmt, int inputFrameHeight, 
+										int intrinsFrameHeight) {
 
 	
+	// output is RGBA8888, number of elements = number of pixels
+	int	outAllocWidth = devSettings->frameWidth;  
+	
+	
+	sp<const Element> yuv = Element::YUV(rs);
+	sp<const Element> outElement = Element::RGBA_8888(rs);
 
-	script = new ScriptC_convert(rs);
-
-	script->set_inAllocation(inputAlloc);
-	script->set_outAllocation(outputAlloc);
+	
 
 }
 
 void FrameRenderer::renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* inBuffer) {
 
 	ANativeWindow* rWindow = ANativeWindow_fromSurface(jenv, surface);
-	ANativeWindow_setBuffersGeometry(rWindow, devSettings->frameWidth, outputFrameHeight, framePixelFormat);
+	ANativeWindow_setBuffersGeometry(rWindow, devSettings->frameWidth, outputFrameHeight, frameWindowFormat);
 
 	// Call the function pointer, which is set in the constructor
 	(this->*processFrame)(inBuffer, rWindow);
@@ -284,7 +308,7 @@ void FrameRenderer::renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* in
 }
 
 
-void FrameRenderer::processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
+void FrameRenderer::processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	inputAlloc->copy1DFrom(inBuffer->start);
 
@@ -310,37 +334,6 @@ void FrameRenderer::processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* wind
 }
 
 
-
-void FrameRenderer::processUYVY_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
-
-	inputAlloc->copy1DFrom(inBuffer->start);
-
-	script->set_firstElement(firstFrameElementIndex);  // Bob Even first
-
-	if (interleaved)
-		script->forEach_convertInterlacedFromUYVY(pixelAlloc);
-	else
-		{}// call renderscript for sequential conversion
-
-	// Write output buffers to the window, we are attempting bob deinterlacing, even first
-	ANativeWindow_Buffer wBuffer;
-	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy1DTo(wBuffer.bits);
-		ANativeWindow_unlockAndPost(window);
-	}
-
-	script->set_firstElement(secondFrameElementIndex);
-
-	if (interleaved)
-		script->forEach_convertFieldFromUYVY(pixelAlloc);
-	else
-        {}// call renderscript for sequential conversion
-
-	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-		outputAlloc->copy1DTo(wBuffer.bits);
-		ANativeWindow_unlockAndPost(window);
-	}
-}
 
 void FrameRenderer::processRGB_NONE(CaptureBuffer* inBuffer, ANativeWindow* window) {
 

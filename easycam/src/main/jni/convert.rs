@@ -120,3 +120,18 @@ void __attribute__((kernel)) convertFieldromUYVY(int32_t xIn, uint32_t x)
    	rsSetElementAt_uchar4(outAllocation, outElement, x);
 
 }
+
+// Similar to convert field, but no color conversion is done.  A field, based on the first element,
+// is stripped and written to an output allocation.  The x values stored in the pixel allocation
+// determines if the fields in the input allocation are interleaved or sequential
+void __attribute__((kernel)) stripField(int32_t xIn, uint32_t x ) {
+
+	uchar4 element;
+
+    int32_t inputIndex = xIn + firstElement;
+
+    element = rsGetElementAt_uchar4(inAllocation, inputIndex);
+
+    rsSetElementAt_uchar4(outAllocation, element, x);
+}
+
