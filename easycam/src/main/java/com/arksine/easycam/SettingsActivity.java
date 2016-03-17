@@ -11,6 +11,12 @@ import android.util.Log;
 import java.io.File;
 import java.util.ArrayList;
 
+//**TODO: 3-17-2016
+// This may need to be rewritten entirely.  Instead of detecting devices by checking for the
+// /dev/videoX file, first we need to look for specific USB devices and enumerate them.  This
+// gives us permission to use the device when SELinux is enabled (hopefully).  It will require
+// updates to the manifest as well, and it allows for potential future user mode drivers.
+
 /**
  * TODO:  Create a fragment to Add and Edit entries in the devices.json file.
  * PrefenceFragment isn't robust enough to easily handle all of the functionality
