@@ -65,8 +65,6 @@ public class DeviceInfo {
 		}
 	};
 
-	//TODO:  We can replace BOB_BOTTOM and BOB_TOP with just BOB.  The standard ID tells us the field
-	//       order;
 	public enum DeintMethod {
 		NONE(0),
 		DISCARD(1),
@@ -84,6 +82,8 @@ public class DeviceInfo {
 	};
 
 	private String driver = "default";
+	private String vendorID = "0000";
+	private String productID = "0000";
 	private String location = "/dev/video0";
 	private int frameWidth = 720;
 	private int frameHeight = 480;
@@ -97,9 +97,11 @@ public class DeviceInfo {
 	// Empty Constructor for Objects needing initial values
 	DeviceInfo() {}
 
-	DeviceInfo(String drv, String loc, int fWidth, int fHeight, int bufs,
-	           int ipt, DeviceStandard std, PixelFormat fmt){
+	DeviceInfo(String drv, String vID, String pID, String loc, int fWidth, int fHeight, int bufs,
+	           int ipt, DeviceStandard std, PixelFormat fmt, FieldType fld, DeintMethod deint){
 		driver = drv;
+		vendorID = vID;
+		productID = pID;
 		location = loc;
 		frameWidth = fWidth;
 		frameHeight = fHeight;
@@ -107,6 +109,8 @@ public class DeviceInfo {
 		input = ipt;
 		devStd = std;
 		pixFmt = fmt;
+		field = fld;
+		deinterlace = deint;
 	}
 
 	public String getDriver() {
@@ -115,6 +119,22 @@ public class DeviceInfo {
 
 	public void setDriver(String driver) {
 		this.driver = driver;
+	}
+
+	public String getProductID() {
+		return productID;
+	}
+
+	public void setProductID(String productID) {
+		this.productID = productID;
+	}
+
+	public String getVendorID() {
+		return vendorID;
+	}
+
+	public void setVendorID(String vendorID) {
+		this.vendorID = vendorID;
 	}
 
 	public String getLocation() {

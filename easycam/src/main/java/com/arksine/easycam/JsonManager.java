@@ -11,8 +11,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 
-//TODO:  Need to programatically move devices.json from the assets folder
-//       to a location with r/w access on file system
 
 /**
  * JsonManager - Manages reading and writing to the devices.json file.  All members and methods
@@ -34,11 +32,22 @@ public class JsonManager {
 	//  Private constructor to prevent instantiation
 	private JsonManager() {	}
 
+	public static int getLength() {
+
+		return deviceList.length();
+	}
+
 	public static void setFilePath(String filePath) {
 		JsonManager.filePath = filePath;
 	}
 
 	public static boolean initialize() {
+
+		if (initialized) {
+
+			Log.i(TAG, "Device List already Initialized.");
+			return true;
+		}
 
 		if (filePath == null) {
 
@@ -141,6 +150,8 @@ public class JsonManager {
 		JSONObject ndev = new JSONObject();
 		try {
 			ndev.put("driver", newDevice.getDriver());
+			ndev.put("usb_vendor_id", newDevice.getVendorID());
+			ndev.put("usb_product_id", newDevice.getProductID());
 			ndev.put("framewidth", newDevice.getFrameWidth());
 			JSONObject frameheight = new JSONObject();
 
@@ -193,7 +204,10 @@ public class JsonManager {
 			}
 			
 			// Replace the current values in the JSON Array with values from the currently
-			// selected device
+			// selected device.
+			curJsonObj.put("driver", currentDevice.getDriver());
+			curJsonObj.put("usb_vendor_id", currentDevice.getVendorID());
+			curJsonObj.put("usb_product_id", currentDevice.getProductID());
 			curJsonObj.put("framewidth", currentDevice.getFrameWidth());
 			JSONObject frameheight = new JSONObject();
 
@@ -203,7 +217,7 @@ public class JsonManager {
 				frameheight.put("ntsc", currentDevice.getFrameHeight());
 			}
 			else {
-				frameheight.put("ntsc", 480);
+				frameheight.put("pal", currentDevice.getFrameHeight());
 			}
 
 			curJsonObj.put("frameheight", frameheight);
@@ -232,34 +246,40 @@ public class JsonManager {
 
 	public static DeviceInfo getDevice(String drv, DeviceInfo.DeviceStandard std) {
 
-		DeviceInfo curDevice = new DeviceInfo();
+		DeviceInfo curDevice;
 
 		try {
 			JSONObject curJsonObj = findDevice(drv);
 
 			if (curJsonObj == null) {
-				Log.i(TAG, curDevice.getDriver() + " not found in JSON file.");
+				Log.i(TAG, drv + " not found in JSON file.");
 				return null;
 			}
 
-			curDevice.setDriver(curJsonObj.getString("driver"));
-			curDevice.setFrameWidth(curJsonObj.getInt("framewidth"));
+			curDevice = setDevInfo(curJsonObj, std);
 
-			JSONObject frameheight = curJsonObj.getJSONObject("frameheight");
-			if (std == DeviceInfo.DeviceStandard.NTSC) {
-				curDevice.setFrameHeight(frameheight.getInt("ntsc"));
-				curDevice.setDevStd(DeviceInfo.DeviceStandard.NTSC);
+		}
+		catch (Exception e) {
+			Log.e(TAG, "Unable to set device info.");
+			return null;
+		}
+		return curDevice;
+	}
+
+	public static DeviceInfo getDevice(int vendorId, int productId, DeviceInfo.DeviceStandard std) {
+
+		DeviceInfo curDevice;
+
+		try {
+			JSONObject curJsonObj = findDevice(vendorId, productId);
+
+			if (curJsonObj == null) {
+				Log.i(TAG, Integer.toHexString(productId) + ":" +
+						Integer.toHexString(vendorId)+ " not found in JSON file.");
+				return null;
 			}
-			else {
-				curDevice.setFrameHeight(frameheight.getInt("pal"));
-				curDevice.setDevStd(DeviceInfo.DeviceStandard.PAL);
-			}
 
-			curDevice.setNumBuffers(curJsonObj.getInt("numbuffers"));
-			curDevice.setPixFmt(DeviceInfo.PixelFormat.valueOf(curJsonObj.getString("pixelformat")));
-			curDevice.setFieldType(DeviceInfo.FieldType.valueOf(curJsonObj.getString("fieldtype")));
-			curDevice.setInput(curJsonObj.getInt("input"));
-
+			curDevice = setDevInfo(curJsonObj, std);
 		}
 		catch (Exception e) {
 			Log.e(TAG, "Unable to set device info.");
@@ -273,7 +293,14 @@ public class JsonManager {
 
 		JSONObject jObj = findDevice(driver);
 
-		return (jObj == null);
+		return (jObj != null);
+	}
+
+	public static boolean checkDevice(int vendorId, int productId) {
+
+		JSONObject jObj = findDevice(vendorId, productId);
+
+		return (jObj != null);
 	}
 
 	private static JSONObject findDevice(String driver) {
@@ -305,5 +332,64 @@ public class JsonManager {
 		}
 		return curJsonObj;
 	}
+
+	private static JSONObject findDevice(int vendorId, int productId) {
+
+		JSONObject curJsonObj = null;
+
+		try {
+			boolean found = false;
+			int i = 0;
+
+			while (i < deviceList.length() && !found) {
+				curJsonObj = deviceList.getJSONObject(i);
+				int curvid = Integer.parseInt(curJsonObj.getString("usb_vendor_id"), 16);
+				int curpid = Integer.parseInt(curJsonObj.getString("usb_product_id"), 16);
+
+				// find the device in the JSON array by comparing the usb vendor and product ids
+				if (vendorId == curvid && productId == curpid) {
+					found = true;
+				}
+				i++;
+			}
+
+			if (!found)
+				curJsonObj = null;
+		}
+		catch (Exception e) {
+			Log.e(TAG, "Unable to find JSONObject in array.");
+			curJsonObj = null;
+		}
+		return curJsonObj;
+	}
+
+	private static DeviceInfo setDevInfo(JSONObject curJsonObj,
+											  DeviceInfo.DeviceStandard std) throws Exception {
+
+		DeviceInfo curDevice = new DeviceInfo();
+
+		curDevice.setDriver(curJsonObj.getString("driver"));
+		curDevice.setVendorID(curJsonObj.getString("usb_vendor_id"));
+		curDevice.setProductID(curJsonObj.getString("usb_product_id"));
+		curDevice.setFrameWidth(curJsonObj.getInt("framewidth"));
+
+		JSONObject frameheight = curJsonObj.getJSONObject("frameheight");
+		if (std == DeviceInfo.DeviceStandard.NTSC) {
+			curDevice.setFrameHeight(frameheight.getInt("ntsc"));
+			curDevice.setDevStd(DeviceInfo.DeviceStandard.NTSC);
+		}
+		else {
+			curDevice.setFrameHeight(frameheight.getInt("pal"));
+			curDevice.setDevStd(DeviceInfo.DeviceStandard.PAL);
+		}
+
+		curDevice.setNumBuffers(curJsonObj.getInt("numbuffers"));
+		curDevice.setPixFmt(DeviceInfo.PixelFormat.valueOf(curJsonObj.getString("pixelformat")));
+		curDevice.setFieldType(DeviceInfo.FieldType.valueOf(curJsonObj.getString("fieldtype")));
+		curDevice.setInput(curJsonObj.getInt("input"));
+
+		return curDevice;
+	}
+
 
 }

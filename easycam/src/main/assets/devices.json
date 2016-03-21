@@ -1,6 +1,8 @@
 [
   {
     "driver": "em28xx",
+    "usb_vendor_id": "eb1a",
+    "usb_product_id": "2861",
     "framewidth": 640,
     "frameheight":{
       "ntsc":480,
@@ -13,6 +15,8 @@
   },
   {
     "driver": "usbtv",
+    "usb_vendor_id": "1b71",
+    "usb_product_id": "3002",
     "framewidth": 720,
     "frameheight": {
       "ntsc": 480,
@@ -25,6 +29,8 @@
   },
   {
     "driver": "stk1160",
+    "usb_vendor_id": "05e1",
+    "usb_product_id": "0408",
     "framewidth": 720,
     "frameheight": {
       "ntsc": 480,
@@ -37,6 +43,8 @@
   },
   {
     "driver": "smi2021",
+    "usb_vendor_id": "1c88",
+    "usb_product_id": "0007",
     "framewidth": 720,
     "frameheight": {
       "ntsc": 484,
