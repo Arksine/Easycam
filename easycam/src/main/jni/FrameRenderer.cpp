@@ -5,42 +5,40 @@
 #include "FrameRenderer.h"
 #include "util.h"
 
-#define INITRS(process, forEach)					\
-	initRenderscript(inputFrameHeight, interleaved); \
-	processFrame = &FrameRenderer:: ## process;		\
+#define INITRS(process, forEach, yuvType)			            \
+	initRenderscript(inputFrameHeight, interleaved, yuvType);   \
+	processFrame = &FrameRenderer:: ## process;		            \
 	executeKernel = &ScriptC_convert:: ## forEach;
 
 /*
 *	deint - deinterlacing method.  IE: NONE, DISCARD, BOB, BLEND.
 *	ft - field type.  Typically Frame, it will be Field if we are deinterlacing
 */
-#define COLORSWITCH(method, ft)													\
-	switch(devSettings->pixelFormat){											\
-		case V4L2_PIX_FMT_YUYV:													\
-			INITRS(processRS_ ## method, forEach_convert ## ft ## FromYUYV)		\
-			break;																\
-		case V4L2_PIX_FMT_UYVY:													\
-			INITRS(processRS_ ## method, forEach_convert ## ft ## FromUYVY)		\
-			break;																\
-		case V4L2_PIX_FMT_NV21:													\
-			break;																\
-		case V4L2_PIX_FMT_YVU420:												\
-			break;																\
-		case V4L2_PIX_FMT_RGB565:												\
-			if (strncmp(#method, "NONE", 4) == 0) {								\
-				processFrame = &FrameRenderer::processRGB_NONE;					\
-			}																	\
-			else {																\
-/*				INITRS(processRS_ ## method, forEach_separate ## ft ## FromRGB)	\ */ \
-			}																	\
-			break;																\
-		default:																\
-			INITRS(processRS_ ## method, forEach_convert ## ft ## FromYUYV)		\
+#define COLORSWITCH(method, ft)													                \
+	switch(devSettings->pixelFormat){											                \
+		case V4L2_PIX_FMT_YUYV:													                \
+			INITRS(processRS_ ## method, forEach_convert ## ft ## FromYUYV, RS_YUV_NONE)		\
+			break;																                \
+		case V4L2_PIX_FMT_UYVY:													                \
+			INITRS(processRS_ ## method, forEach_convert ## ft ## FromUYVY, RS_YUV_NONE)		\
+			break;																                \
+		case V4L2_PIX_FMT_NV21:													                \
+		    INITRS(processIntrinsic_ ## method, forEach_stripField, RS_YUV_NV21)                \
+			break;																                \
+		case V4L2_PIX_FMT_YVU420:												                \
+		    INITRS(processIntrinsic_ ## method, forEach_stripField, RS_YUV_YV12)                \
+			break;																                \
+		case V4L2_PIX_FMT_RGB565:												                \
+			if (strncmp(#method, "NONE", 4) == 0) {								                \
+				processFrame = &FrameRenderer::processRGB_SCAN;					                \
+			}																	                \
+			else {																                \
+				INITRS(processRGB_ ## method, forEach_stripField ## ft ## FromRGB, RS_YUV_NONE)	\
+			}																	                \
+			break;																                \
+		default:																                \
+			INITRS(processRS_ ## method, forEach_convert ## ft ## FromYUYV, RS_YUV_NONE)		\
 	}
-
-
-
-//TODO:  Create a renderer using scriptIntrisincYUVtoRGB for NV21 and YV12 pixel formats
 
 FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets) {
 
@@ -74,7 +72,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;   // not used
-			COLORSWITCH(NONE, Frame)
+			COLORSWITCH(SCAN, Frame)
 			break;
 		case V4L2_FIELD_TOP:	// Only half frame recd, no deinterlacing allowed
 			interleaved = false;
@@ -82,7 +80,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight / 2;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;
-			COLORSWITCH(NONE, Frame)
+			COLORSWITCH(SCAN, Frame)
 			break;
 		case V4L2_FIELD_BOTTOM:	// Only half frame recd, no deinterlacing allowed
 			interleaved = false;
@@ -90,7 +88,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight / 2;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;
-			COLORSWITCH(NONE, Frame)
+			COLORSWITCH(SCAN, Frame)
 			break;
 		case V4L2_FIELD_INTERLACED:
 			interleaved = true;
@@ -100,14 +98,16 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 					outputFrameHeight = devSettings->frameHeight;
 					firstFrameElementIndex = 0;
 					secondFrameElementIndex = 0;
-					COLORSWITCH(NONE, Frame)
+					COLORSWITCH(SCAN, Frame)
 					break;
 				case DISCARD:
 					outputFrameHeight = devSettings->frameHeight / 2;
+					// NTSC - Bottom field first
 					if (devSettings->videoStandard == V4L2_STD_NTSC) {	
 						firstFrameElementIndex = devSettings->frameWidth / 2;
 						secondFrameElementIndex = 0;
 					}
+					// PAL - Top Field first
 					else {
 						firstFrameElementIndex = 0;
 						secondFrameElementIndex = devSettings->frameWidth / 2;
@@ -116,10 +116,12 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 					break;
 				case BOB:
 					outputFrameHeight = devSettings->frameHeight / 2;
+					// NTSC - Bottom field first
 					if (devSettings->videoStandard == V4L2_STD_NTSC) {	
 						firstFrameElementIndex = devSettings->frameWidth / 2;
 						secondFrameElementIndex = 0;
 					}
+					// NTSC - Bottom field first
 					else {
 						firstFrameElementIndex = 0;
 						secondFrameElementIndex = devSettings->frameWidth / 2;
@@ -200,36 +202,43 @@ void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSY
 		// The intrinsic outputs RGBA, so its one elemenet per pixel
 		intrinsAllocationSize = outAllocWidth * inputFrameHeight;
 		
-		// TODO:  For rigth now this isnt used
+		// TODO:  For right now this isnt used
 		inAllocationSize = devSettings->frameWidth * inputFrameHeight;
 	}
 	else {
-		intrinsAllocationSize = 0;		// there is no intrinsic allocation, so no size is set
+		intrinsAllocationSize = 0;		// there is no intrinsic allocation
 		inAllocationSize = inAllocWidth * inputFrameHeight;
 	}
 	int outAllocationSize = outAllocWidth * outputFrameHeight;
 	
 
-	// create a backing store for the pixel allocation
+	/*
+	 The array pixelBuf is a backing store containing x values corresponding to the index
+	 of each pixel in the input allocation.  This makes it easier to process YUV pixels that
+	 have two pixels per element in the input allocation, and it also allows for more parallelism
+	 as the kernel is split into each pixel instead of two pixels.
+	 */
 	int xVal = 0;
 	int32_t* pixelBuf = new int32_t[outAllocationSize];
 
+	// The pixel buf is the same size as the output allocation (one element per pixel), but
+	// the variables below allow for friendlier names when populating the pixelBuf
 	int pixelBufWidth = outAllocWidth;
 	int pixelBufHeight = outputFrameHeight;
-	int pixelsPerElement;
+	int pixelsPerElement;           // number of pixels stored in one element for the input allocation
 	if (packedYUV || devSettings->pixelFormat == V4L2_PIX_FMT_RGB565)
 		pixelsPerElement = 1;
 	else
 		pixelsPerElement = 2;
 
-	// Populate the pixel allocation backing store with the current input index we want to work on.
+	// If the input is interleaved, we only want a backing store for every other line.
 	if (interleaved) {
-		// Calculate the x values for the input allocation in interleaved fields
+
 		for (int y=0; y < pixelBufHeight; y++) {
 
 			for (int x=0; x < pixelBufWidth; x++) {
 
-				xVal = (x + ((2*pixelBufWidth)*y))/pixelsPerElement; 	
+				xVal = (x + ((2*y)*pixelBufWidth)/pixelsPerElement;
 				pixelBuf[x + (y*pixelBufWidth)] = xVal;
 			}
 		}
@@ -241,7 +250,7 @@ void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSY
 
 			for (int x=0; x < pixelBufWidth; x++) {
 								
-				xVal = (x + (pixelBufWidth*y))/pixelsPerElement; 
+				xVal = (x + (y*pixelBufWidth))/pixelsPerElement;
 				pixelBuf[x + (y*pixelBufWidth)] = xVal;
 			}
 		}		
@@ -255,7 +264,7 @@ void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSY
 	script = new ScriptC_convert(rs);
 	sp<const Element> outElement = Element::RGBA_8888(rs);
 
-	if (packedYUV) {
+	if (packedYUV) {    // packedYUV types use ScriptIntrinsicYuvToRGB
 		sp<const Element> inElement = Element::createPixel(rs, RS_TYPE_UNSIGNED_8, RS_KIND_PIXEL_YUV);
 		sp<const Type::Builder> yuvBuilder = Type.Builder(rs, inElement);
 		yuvBuilder.setX(devSettings->frameWidth);
@@ -267,7 +276,8 @@ void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSY
 		intrinsAlloc = Allocation::createSized(rs, outElement, intrinsAllocationSize);
 		intrinsic = ScriptIntrinsicYuvToRGB::create(rs, outElement);
 		intrinsic->setInput(inputAlloc);
-		script->set_inAllocation(intrinsAlloc);
+		script->set_inAllocation(intrinsAlloc);  // This is required to strip the field on interleaved
+		                                         // frames when we discard or bob deinterlace
 	}
 	else {
 		sp<const Element> inElement = Element::U8_4(rs);
@@ -278,21 +288,6 @@ void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSY
 
 	outputAlloc = Allocation::createSized(rs, outElement, outAllocationSize);
 	script->set_outAllocation(outputAlloc);
-
-}
-
-void FrameRenderer::initYuvIntrinsic(RSYuvFormat yuvFmt, int inputFrameHeight, 
-										int intrinsFrameHeight) {
-
-	
-	// output is RGBA8888, number of elements = number of pixels
-	int	outAllocWidth = devSettings->frameWidth;  
-	
-	
-	sp<const Element> yuv = Element::YUV(rs);
-	sp<const Element> outElement = Element::RGBA_8888(rs);
-
-	
 
 }
 
@@ -307,13 +302,11 @@ void FrameRenderer::renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* in
 	ANativeWindow_release(rWindow);
 }
 
-
-void FrameRenderer::processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
+void FrameRenderer::processRS_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	inputAlloc->copy1DFrom(inBuffer->start);
 
-	script->set_firstElement(firstFrameElementIndex);  // Bob Even first
-
+	script->set_firstElement(firstFrameElementIndex);
 	(script->*executeKernel)(pixelAlloc);  //TODO:  NEED TO CHECK AND SEE IF THIS WORKS!!!
 	//script->forEach_convertFieldFromYUYV(pixelAlloc);
 
@@ -324,8 +317,32 @@ void FrameRenderer::processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window
 		ANativeWindow_unlockAndPost(window);
 	}
 
+}
+
+void FrameRenderer::processRS_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+    // processRS_SCAN contains the necessary functionality to discard, so call that
+    processRS_SCAN(inBuffer, window);
+}
+
+void FrameRenderer::processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+	inputAlloc->copy1DFrom(inBuffer->start);
+
+	script->set_firstElement(firstFrameElementIndex);
+	(script->*executeKernel)(pixelAlloc);  //TODO:  NEED TO CHECK AND SEE IF THIS WORKS!!!
+	//script->forEach_convertFieldFromYUYV(pixelAlloc);
+
+	// Write output buffers to the window, we are attempting bob deinterlacing, even first
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		outputAlloc->copy1DTo(wBuffer.bits);
+		ANativeWindow_unlockAndPost(window);
+	}
+
+    CLEAR(wBuffer);
 	script->set_firstElement(secondFrameElementIndex);
-	script->forEach_convertFieldFromYUYV(pixelAlloc);
+	(script->*executeKernel)(pixelAlloc);
+	// script->forEach_convertFieldFromYUYV(pixelAlloc);
 
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
 		outputAlloc->copy1DTo(wBuffer.bits);
@@ -333,10 +350,7 @@ void FrameRenderer::processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window
 	}
 }
 
-
-
-void FrameRenderer::processRGB_NONE(CaptureBuffer* inBuffer, ANativeWindow* window) {
-
+void FrameRenderer::processRGB_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	// Write buffer directly to window, no conversion is necessary
 	ANativeWindow_Buffer wBuffer;
@@ -345,3 +359,66 @@ void FrameRenderer::processRGB_NONE(CaptureBuffer* inBuffer, ANativeWindow* wind
 		ANativeWindow_unlockAndPost(window);
 	}
 }
+
+// TODO:  3/21/2016 - Add functions to process RGB deinterlacing (BOB and DISCARD)
+
+void FrameRenderer::processIntrinsic_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+    inputAlloc->copy1DFrom(inBuffer->start);
+    intrinsic->forEach(intrinsAlloc);
+
+    // Write output buffers to the window, we are attempting bob deinterlacing, even first
+    ANativeWindow_Buffer wBuffer;
+    if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+        intrinsAlloc->copy1DTo(wBuffer.bits);
+        ANativeWindow_unlockAndPost(window);
+    }
+
+}
+
+void FrameRenderer::processIntrinsic_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+    inputAlloc->copy1DFrom(inBuffer->start);
+    intrinsic->forEach(intrinsAlloc);
+
+    // Strip the first frame (even or odd depending of the frame element index)
+    script->set_firstElement(firstFrameElementIndex);
+    (script->*executeKernel)(pixelAlloc);
+
+    // Write output buffers to the window, we are attempting bob deinterlacing, even first
+    ANativeWindow_Buffer wBuffer;
+    if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+        outputAlloc->copy1DTo(wBuffer.bits);
+        ANativeWindow_unlockAndPost(window);
+    }
+
+}
+
+void FrameRenderer::processIntrinsic_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+    inputAlloc->copy1DFrom(inBuffer->start);
+    intrinsic->forEach(intrinsAlloc);
+
+    // Strip the first frame (even or odd depending of the frame element index)
+    script->set_firstElement(firstFrameElementIndex);
+    (script->*executeKernel)(pixelAlloc);
+
+    // Write output buffers to the window, we are attempting bob deinterlacing, even first
+    ANativeWindow_Buffer wBuffer;
+    if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+        outputAlloc->copy1DTo(wBuffer.bits);
+        ANativeWindow_unlockAndPost(window);
+    }
+
+    CLEAR(wBuffer);
+    script->set_firstElement(secondFrameElementIndex);
+    (script->*executeKernel)(pixelAlloc);
+    // script->forEach_convertFieldFromYUYV(pixelAlloc);
+
+    if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+        outputAlloc->copy1DTo(wBuffer.bits);
+        ANativeWindow_unlockAndPost(window);
+    }
+
+}
+

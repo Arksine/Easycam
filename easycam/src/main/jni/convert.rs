@@ -7,10 +7,17 @@ rs_allocation inAllocation;
 rs_allocation outAllocation;
 
 int32_t firstElement;   //  The first Element to be processed. For interleaved frames the first element 0 for
-						//  Odd frames, (frame Width / 2) for even frames in YUY2 or other 16-bit
+						//  Odd frames, (frameWidth / 2) for even frames in YUY2 or other 16-bit
 						//  formats, and frameWidth for RGBA and other 32-bit formats.  For sequential frames
-						//  0 is the first element of the first half, and (frame width * frameheight) / 2, which is halfway,
+						//  0 is the first element of the first half, and (framewidth * frameheight) / 2, which is halfway,
 						//  for the second half
+
+// TODO: 3/21/2016
+// With the new way of allocating the pixelBuf, the convertFrameFrom kernels are redundant.
+// Remove them, but check the logic again in FrameRenderer.cpp to make absolutely sure that
+// convertFieldFrom can perform an entire frame as well
+
+
 
 // Converts whole frame from YUYV to RGBA
 void __attribute__((kernel)) convertFrameFromYUYV(int32_t in, uint32_t x)
@@ -50,6 +57,8 @@ void __attribute__((kernel)) convertFieldFromYUYV(int32_t xIn, uint32_t x)
 
     inElement = rsGetElementAt_uchar4(inAllocation, inputIndex);
 
+    // Bitwise AND with 0x0001 tells us if the current index of the pixelBuf is even or odd (zero indexed)
+    // If its even, the element we need from the input allocation is x, otherwise its y.
 	if ((x & (int32_t)0x0001) == 0)
 	{
 		//First pixel in a pair of YUV pixels
@@ -95,7 +104,7 @@ void __attribute__((kernel)) convertFrameFromUYVY(int32_t in, uint32_t x)
 
 // Converts the even or odd fields in Interlaced Frame or sequential Frames.  The first element variable tells us which
 // field to process, and the x values in the pixel alloc will determine if the frame is interlaced or sequential.
-void __attribute__((kernel)) convertFieldromUYVY(int32_t xIn, uint32_t x)
+void __attribute__((kernel)) convertFieldFromUYVY(int32_t xIn, uint32_t x)
 {
     uchar4 inElement;
     uchar4 outElement;

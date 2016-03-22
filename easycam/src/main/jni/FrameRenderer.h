@@ -54,10 +54,7 @@ private:
     ScriptC_convert* script;
 	sp<ScriptIntrinsicYuvToRGB> intrinsic;
 
-	// TODO:  We need multiple init Renderscript functions.  The initilization depends on if/how
-	//        we deinterlace (ie the size of the allocations differ)
 	void initRenderscript(int inputFrameHeight, bool interleaved, RSYuvFormat yuvFmt);
-	void initYuvIntrinsic(RSYuvFormat yuvFmt, int inputFrameHeight, int intrinsFrameHeight);
 
     // Function pointer to store which call we need to make, depending on YUV type
     void (FrameRenderer::* processFrame)(CaptureBuffer*, ANativeWindow*);
@@ -66,16 +63,19 @@ private:
 	// while processing
 	void (ScriptC_convert::* executeKernel)(sp<const Allocation>);
 
-    void processRS_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processRS_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window); // No deinterlacing
     void processRS_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processRS_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);   // TODO: STUB
 
     // RGB needs no color conversion, and with no deinterlacing it needs no calls to renderscript
-    void processRGB_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processRGB_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processRGB_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processRGB_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processRGB_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);   // TODO: STUB
 
     // The below is for NV21 and YV12, which use YUV intrinsic
-    void processIntrinsic_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processIntrinsic_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processIntrinsic_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processIntrinsic_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processIntrinsic_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);  // TODO: STUB
