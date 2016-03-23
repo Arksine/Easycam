@@ -58,16 +58,16 @@
     <string-array name="pref_deinterlace_method_entries">
         <item>None</item>
         <item>Discard</item>
-        <item>Bob, Even Field First</item>
-        <item>Bob, Odd Field First</item>
-        <item>Blend</item>
+        <item>Bob</item>
+        <!--<item>Blend</item>  TODO: 3/22/2016 - Renable Blend Deinterlacing after implementation -->
     </string-array>
     <string-array name="pref_deinterlace_method_values">
         <item>NONE</item>
         <item>DISCARD</item>
         <item>BOB</item>
-        <item>BLEND</item>
+        <!--<item>BLEND</item>  -->
     </string-array>
+
     <string name="pref_deinterlace_method_default">NONE</string>
     <string name="pref_deinterlace_method_summary">None</string>
 

@@ -93,9 +93,9 @@ JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNI
 		fRenderer = NULL;
 	}
 
-	if (devInfo) {
-		delete devInfo;
-		devInfo = NULL;
+	if (devSettings) {
+		delete devSettings;
+		devSettings = NULL;
 	}
 }
 
@@ -120,7 +120,8 @@ JNIEXPORT jstring JNICALL Java_com_arksine_easycam_NativeEasyCapture_detectDevic
  */
 void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 
-	//TODO: Finish this function
+	// TODO: 3/22/2016
+	// Add Usb Vendor ID and Usb Product ID if we think we need them.
 	jclass devInfo = jenv->GetObjectClass(dInfo);
 	jmethodID getDriver = jenv->GetMethodID(devInfo, "getDriver", "()Ljava/lang/String");
 	jmethodID getLocation = jenv->GetMethodID(devInfo, "getLocation","()Ljava/lang/String" );
@@ -158,11 +159,11 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	// TODO:  Need to be absolutely sure that when we release UTF Chars we aren't deleting the string
 	//        in the device settings
 	jstring tmpStr = (jstring)jenv->CallObjectMethod(dInfo, getDriver);
-	devSets->driver = (char*)jenv->GetStringUTFChars(tmpStr, JNI_TRUE);
+	devSets->driver = (char*)jenv->GetStringUTFChars(tmpStr, 0);
 	jenv->ReleaseStringUTFChars(tmpStr, devSets->driver);
 
 	tmpStr = (jstring)jenv->CallObjectMethod(dInfo, getLocation);
-	devSets->location = (char*)jenv->GetStringUTFChars(tmpStr, JNI_TRUE);
+	devSets->location = (char*)jenv->GetStringUTFChars(tmpStr, 0);
 	jenv->ReleaseStringUTFChars(tmpStr, devSets->location);
 
 	devSets->frameWidth = (int)jenv->CallIntMethod(dInfo, getFrameWidth);
@@ -213,7 +214,7 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	}
 
 	// Set Deinterlace Method
-	tmpIndex = (int)jenv->CallIntMethod(deint, getDeinterlace);
+	tmpIndex = (int)jenv->CallIntMethod(deint, getDeintIndex);
 	switch (tmpIndex) {
 		case 0:     // NONE
 			devSets->deintMethod = NONE;
@@ -234,7 +235,7 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	}
 
 	// Set Field Type
-	tmpIndex = (int)jenv->CallIntMethod(field, getFieldType);
+	tmpIndex = (int)jenv->CallIntMethod(field, getFieldIndex);
 	switch (tmpIndex) {
 		case 0:     // NONE (Progressive Scan)
 			devSets->field = V4L2_FIELD_NONE;

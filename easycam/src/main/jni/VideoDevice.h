@@ -8,11 +8,7 @@
 #ifndef VIDEODEVICE_H_
 #define VIDEODEVICE_H_
 
-#include <jni.h>
-#include <cstdio>
 #include "util.h"
-
-using namespace std;
 
 /* Class: Video Device
  * Encapsulates a V4l2 device, exposing all functionality
@@ -38,7 +34,7 @@ public:
 	void stopDevice();  // shut down device
 
 	// static function to detect a device
-	static const char* detectDevice(const char* devLocation);
+	static char* detectDevice(const char* devLocation);
 
 	bool videoDeviceAttached() {
 		if (fileDescriptor == -1)

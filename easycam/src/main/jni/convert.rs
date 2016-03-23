@@ -9,44 +9,15 @@ rs_allocation outAllocation;
 int32_t firstElement;   //  The first Element to be processed. For interleaved frames the first element 0 for
 						//  Odd frames, (frameWidth / 2) for even frames in YUY2 or other 16-bit
 						//  formats, and frameWidth for RGBA and other 32-bit formats.  For sequential frames
-						//  0 is the first element of the first half, and (framewidth * frameheight) / 2, which is halfway,
-						//  for the second half
+						//  0 is the first element of the first half, and ((framewidth / 2)* frameheight) / 2,
+						//  which is halfway though the input allocation
 
-// TODO: 3/21/2016
-// With the new way of allocating the pixelBuf, the convertFrameFrom kernels are redundant.
-// Remove them, but check the logic again in FrameRenderer.cpp to make absolutely sure that
-// convertFieldFrom can perform an entire frame as well
+//TODO: Fix the comments for each kernel.  They process fields and frames now.
 
-
-
-// Converts whole frame from YUYV to RGBA
-void __attribute__((kernel)) convertFrameFromYUYV(int32_t in, uint32_t x)
-{
-	uchar4 inElement;
-    uchar4 outElement;
-    uchar yValue;
-
-    inElement = rsGetElementAt_uchar4(inAllocation, (x / 2));
-
-	if ((x & (int32_t)0x0001) == 0)
-	{
-		//First pixel in a pair of YUV pixels
-		yValue = inElement.x;
-	}
-	else
-	{
-		yValue = inElement.z;
-	}
-
-	outElement = rsYuvToRGBA_uchar4(yValue, inElement.y, inElement.w);
-
-	rsSetElementAt_uchar4(outAllocation, outElement, x);
-
-}
-
-// Converts the even or odd fields in Interlaced Frame or sequential Frames.  The first element variable tells us which
-// field to process, and the x values in the pixel alloc will determine if the frame is interlaced or sequential.
-void __attribute__((kernel)) convertFieldFromYUYV(int32_t xIn, uint32_t x)
+// Converts YUYV pixels from the input allocation into RGBA pixels.  This kernel is called on a
+// buffer that contains x-index values for the input allocation.  This allows this kernel to
+// convert entire frames, interleaved fields, and sequential fields.
+void __attribute__((kernel)) convertFromYUYV(int32_t xIn, uint32_t x)
 {
     uchar4 inElement;
     uchar4 outElement;
@@ -75,36 +46,8 @@ void __attribute__((kernel)) convertFieldFromYUYV(int32_t xIn, uint32_t x)
 
 }
 
-
-
-// Converts whole frame from UYVY to RGBA
-void __attribute__((kernel)) convertFrameFromUYVY(int32_t in, uint32_t x)
-{
-	uchar4 inElement;
-    uchar4 outElement;
-    uchar yValue;
-
-    inElement = rsGetElementAt_uchar4(inAllocation, (x / 2));
-
-	if ((x & (int32_t)0x0001) == 0)
-	{
-		//First pixel in a pair of YUV pixels
-		yValue = inElement.y;
-	}
-	else
-	{
-		yValue = inElement.w;
-	}
-
-	outElement = rsYuvToRGBA_uchar4(yValue, inElement.x, inElement.z);
-
-	rsSetElementAt_uchar4(outAllocation, outElement, x);
-
-}
-
-// Converts the even or odd fields in Interlaced Frame or sequential Frames.  The first element variable tells us which
-// field to process, and the x values in the pixel alloc will determine if the frame is interlaced or sequential.
-void __attribute__((kernel)) convertFieldFromUYVY(int32_t xIn, uint32_t x)
+// Same as above, but converts from UYVY
+void __attribute__((kernel)) convertFromUYVY(int32_t xIn, uint32_t x)
 {
     uchar4 inElement;
     uchar4 outElement;
@@ -130,9 +73,8 @@ void __attribute__((kernel)) convertFieldFromUYVY(int32_t xIn, uint32_t x)
 
 }
 
-// Similar to convert field, but no color conversion is done.  A field, based on the first element,
-// is stripped and written to an output allocation.  The x values stored in the pixel allocation
-// determines if the fields in the input allocation are interleaved or sequential
+// Uses the x-index values from the pixel buffer to strip fields from the input allocation.
+// No other processing is done.
 void __attribute__((kernel)) stripField(int32_t xIn, uint32_t x ) {
 
 	uchar4 element;

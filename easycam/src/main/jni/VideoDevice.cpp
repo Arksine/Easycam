@@ -7,9 +7,7 @@
 
 #include "VideoDevice.h"
 #include "util.h"
-#include <sys/stat.h>
 #include <sys/mman.h>
-#include <sys/ioctl.h>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -182,7 +180,7 @@ int VideoDevice::initMemmap() {
 		buf.memory = V4L2_MEMORY_MMAP;
 		buf.index = bufferCount;
 
-		if(-1 == xioctl(file_descriptor, VIDIOC_QUERYBUF, &buf)) {
+		if(-1 == xioctl(fileDescriptor, VIDIOC_QUERYBUF, &buf)) {
 			return errnoexit("VIDIOC_QUERYBUF");
 		}
 
@@ -355,42 +353,44 @@ int VideoDevice::closeDevice() {
 	return v4l2_close(fileDescriptor);
 }
 
-
+// TODO: 3/22/2016 - need to return a string rather than a char*.  Also need to set that up
+//                   in the device settings structure
 /**
  *   Helper function to attempt to find a specific device
  */
-const char* VideoDevice::detectDevice(const char* devLocation) {
+char* VideoDevice::detectDevice(const char* devLocation) {
 	struct v4l2_capability cap;
 	int fd = -1;
 
 	fd = v4l2_open(devLocation);
 	if (fd == -1)
 	{
-		return "NO_DEVICE";
+		return strdup("NO_DEVICE");
 	}
 
 	// Get device capabilities
 	CLEAR(cap);
 	if(-1 == xioctl(fd, VIDIOC_QUERYCAP, &cap)) {
-		return "NO_DEVICE";
+		return strdup("NO_DEVICE");
 	}
 
 	if(!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-		return "NO_DEVICE";
+		return strdup("NO_DEVICE");
 	}
 
 	if(!(cap.capabilities & V4L2_CAP_STREAMING)) {
-		return "NO_DEVICE";
+		return strdup("NO_DEVICE");
 	}
 
 	LOGI("Driver detected as: %s", cap.driver);
 
 	// Close Device
 	if(v4l2_close(fd) != SUCCESS_LOCAL) {
-		return "NO_DEVICE";
+		return strdup("NO_DEVICE");
 	}
 
-	return (const char*)cap.driver;
+    char* deviceName = strdup((const char*)cap.driver);
+	return deviceName;
 }
 
 

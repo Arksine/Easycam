@@ -3,9 +3,10 @@
 
 #include <jni.h>
 #include <cstdio>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <android/log.h>
 #include <linux/videodev2.h>
+#include <android/log.h>
 
 #define LOG_TAG "NativeEasyCaptureJNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
@@ -16,6 +17,8 @@
 #define ERROR_LOCAL -1
 #define SUCCESS_LOCAL 0
 
+using namespace std;
+
 // Simple buffer that stores a reference to an array and the length of the array
 typedef struct {
     void* start;
@@ -24,6 +27,8 @@ typedef struct {
 
 enum Deinterlace {NONE, DISCARD, BOB, BLEND};
 
+// TODO: 3/22/2016
+// Need to change the char* types below to strings
 typedef struct {
 	char* driver;
 	char* location;  		// location of the device file (/dev/videoX)

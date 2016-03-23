@@ -17,7 +17,7 @@ public class NativeEasyCapture implements EasyCapture {
 
 
     private native boolean startDevice(String cacheDir, DeviceInfo dInfo);
-	private native boolean startStreaming();  //TODO:  need to implement this funciton in native code
+	private native boolean startStreaming();
     private native void getNextFrame(Surface mySurface);
     private native boolean isDeviceAttached();
     private native void stopDevice();
@@ -68,22 +68,15 @@ public class NativeEasyCapture implements EasyCapture {
                         " -- does the app have the CAMERA permission?");
                 deviceReady = false;
             }
-        } else {
+        }
+        else {
             Log.w(TAG, currentDevice.getLocation() + " does not exist");
             deviceReady = false;
         }
 
         if(deviceReady) {
             Log.i(TAG, "Preparing camera with device name " + currentDevice.getLocation());
-            if(startDevice(context.getCacheDir().toString(), currentDevice)) {
-
-                deviceConnected = false;
-            }
-            else {
-
-                deviceConnected = true;
-            }
-
+            deviceConnected = startDevice(context.getCacheDir().toString(), currentDevice);
         }
     }
 
@@ -100,7 +93,7 @@ public class NativeEasyCapture implements EasyCapture {
         String prefTVStandard = sharedPrefs.getString("pref_key_select_standard", "NTSC");
         DeviceInfo.DeviceStandard std = DeviceInfo.DeviceStandard.valueOf(prefTVStandard);
 
-        // Split the string intot two parts.  The first part is the driver name, the second is the location
+        // Split the string into two parts.  The first part is the driver name, the second is the location
         String[] devAndLoc = prefSelectDevice.split(":");
 
         currentDevice = JsonManager.getDevice(devAndLoc[0], std);
@@ -145,7 +138,6 @@ public class NativeEasyCapture implements EasyCapture {
 
     public boolean isDeviceConnected() {return deviceConnected;}
 
-	// TODO:  need to call this in EasycamView prior to capturing frames
 	public boolean streamOn() {
         return startStreaming();
 	}

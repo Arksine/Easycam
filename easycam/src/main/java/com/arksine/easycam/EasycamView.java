@@ -111,8 +111,18 @@ SurfaceHolder.Callback, Runnable {
         }
         Log.i(TAG, "View resumed");
 
-	    // start streaming now
-        capDevice.streamOn();
+
+	    // Attempt to start streaming
+        if (!capDevice.streamOn()) {
+            CharSequence text = "Unable to stream video from device";
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(appContext, text, duration);
+            toast.show();
+
+            Log.e(TAG, "Device error: unable to start streaming video");
+            mRunning = false;
+            return;
+        }
 
         mRunning = true;
         mThread = new Thread(this);

@@ -5,39 +5,43 @@
 #include "FrameRenderer.h"
 #include "util.h"
 
-#define INITRS(process, forEach, yuvType)			            \
-	initRenderscript(inputFrameHeight, interleaved, yuvType);   \
-	processFrame = &FrameRenderer:: ## process;		            \
-	executeKernel = &ScriptC_convert:: ## forEach;
-
 /*
-*	deint - deinterlacing method.  IE: NONE, DISCARD, BOB, BLEND.
-*	ft - field type.  Typically Frame, it will be Field if we are deinterlacing
+The macros below reduce the amount of code necessary tremendously.  There are many
+potential render paths, and a large nested switch statement is required to choose the
+correct one.
+TODO: 3/22/2016 - Add more pertitent information as to how the each macro expands
 */
-#define COLORSWITCH(method, ft)													                \
+
+#define INITRS(rsType, kernel, yuvType)		                    \
+	initRenderscript(inputFrameHeight, interleaved, yuvType);   \
+	processFrame = &FrameRenderer::process ## rsType;		    \
+	executeKernel = &ScriptC_convert::forEach ## kernel;
+
+#define COLORSWITCH(method)													                    \
 	switch(devSettings->pixelFormat){											                \
 		case V4L2_PIX_FMT_YUYV:													                \
-			INITRS(processRS_ ## method, forEach_convert ## ft ## FromYUYV, RS_YUV_NONE)		\
+			INITRS(RS_ ## method, _convertFromYUYV, RS_YUV_NONE)		            \
+			processFrame = &FrameRenderer::processRS_ ## method;                                \
 			break;																                \
 		case V4L2_PIX_FMT_UYVY:													                \
-			INITRS(processRS_ ## method, forEach_convert ## ft ## FromUYVY, RS_YUV_NONE)		\
+			INITRS(RS_ ## method, _convertFromUYVY, RS_YUV_NONE)		            \
 			break;																                \
 		case V4L2_PIX_FMT_NV21:													                \
-		    INITRS(processIntrinsic_ ## method, forEach_stripField, RS_YUV_NV21)                \
+		    INITRS(Intrinsic_ ## method, _stripField, RS_YUV_NV21)                \
 			break;																                \
 		case V4L2_PIX_FMT_YVU420:												                \
-		    INITRS(processIntrinsic_ ## method, forEach_stripField, RS_YUV_YV12)                \
+		    INITRS(Intrinsic_ ## method, _stripField, RS_YUV_YV12)                \
 			break;																                \
 		case V4L2_PIX_FMT_RGB565:												                \
 			if (strncmp(#method, "NONE", 4) == 0) {								                \
 				processFrame = &FrameRenderer::processRGB_SCAN;					                \
 			}																	                \
 			else {																                \
-				INITRS(processRGB_ ## method, forEach_stripField ## ft ## FromRGB, RS_YUV_NONE)	\
+				INITRS(RGB_ ## method, _stripField, RS_YUV_NONE)	                \
 			}																	                \
 			break;																                \
 		default:																                \
-			INITRS(processRS_ ## method, forEach_convert ## ft ## FromYUYV, RS_YUV_NONE)		\
+			INITRS(RS_ ## method, _convertFromYUYV, RS_YUV_NONE)		            \
 	}
 
 FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets) {
@@ -65,6 +69,12 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 		frameWindowFormat = WINDOW_FORMAT_RGBA_8888;
 	}
 
+    /*  TODO: 3/22/2016
+    When recieving frames in V4L2_FIELD_TOP, V4L2_FIELD_BOTTOM, or V4L2_FIELD_ALTERNATE, does the
+    driver report the full frame height, or half?  Need to make sure of this and correct the switch
+    statement below if necessary.
+    */
+
 	switch(devSettings->field) {
 		case V4L2_FIELD_NONE:	// Progressive Scan, no deinterlacing allowed
 			interleaved = false;
@@ -72,7 +82,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;   // not used
-			COLORSWITCH(SCAN, Frame)
+			COLORSWITCH(SCAN)
 			break;
 		case V4L2_FIELD_TOP:	// Only half frame recd, no deinterlacing allowed
 			interleaved = false;
@@ -80,7 +90,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight / 2;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;
-			COLORSWITCH(SCAN, Frame)
+			COLORSWITCH(SCAN)
 			break;
 		case V4L2_FIELD_BOTTOM:	// Only half frame recd, no deinterlacing allowed
 			interleaved = false;
@@ -88,7 +98,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 			outputFrameHeight = devSettings->frameHeight / 2;
 			firstFrameElementIndex = 0;
 			secondFrameElementIndex = 0;
-			COLORSWITCH(SCAN, Frame)
+			COLORSWITCH(SCAN)
 			break;
 		case V4L2_FIELD_INTERLACED:
 			interleaved = true;
@@ -98,7 +108,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 					outputFrameHeight = devSettings->frameHeight;
 					firstFrameElementIndex = 0;
 					secondFrameElementIndex = 0;
-					COLORSWITCH(SCAN, Frame)
+					COLORSWITCH(SCAN)
 					break;
 				case DISCARD:
 					outputFrameHeight = devSettings->frameHeight / 2;
@@ -112,7 +122,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 						firstFrameElementIndex = 0;
 						secondFrameElementIndex = devSettings->frameWidth / 2;
 					}
-					COLORSWITCH(DISCARD, Field)
+					COLORSWITCH(DISCARD)
 					break;
 				case BOB:
 					outputFrameHeight = devSettings->frameHeight / 2;
@@ -121,12 +131,12 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 						firstFrameElementIndex = devSettings->frameWidth / 2;
 						secondFrameElementIndex = 0;
 					}
-					// NTSC - Bottom field first
+					//  PAL - Top Field first
 					else {
 						firstFrameElementIndex = 0;
 						secondFrameElementIndex = devSettings->frameWidth / 2;
 					}
-					COLORSWITCH(BOB, Field)
+					COLORSWITCH(BOB)
 					break;
 				//case BLEND:
 					//outputFrameHeight = devSettings->frameHeight;
@@ -139,31 +149,61 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets
 		case V4L2_FIELD_SEQ_TB:
 			interleaved = false;
 			inputFrameHeight = devSettings->frameHeight;
-			// TODO: Move if statement below into the switch statement under discard and bob
-			if (devSettings->videoStandard == V4L2_STD_NTSC) {	
-				firstFrameElementIndex = (devSettings->frameWidth*devSettings->frameHeight) / 4;
-				secondFrameElementIndex = 0;
-			}
-			else {
-				firstFrameElementIndex = 0;
-				secondFrameElementIndex = (devSettings->frameWidth*devSettings->frameHeight) / 4;
-			}
+			firstFrameElementIndex = 0;
+			secondFrameElementIndex = (devSettings->frameWidth*devSettings->frameHeight) / 4;
 			switch (devSettings->deintMethod) {
-			
+                case NONE:
+                    outputFrameHeight = devSettings->frameHeight;
+                    COLORSWITCH(SCAN)
+                    break;
+                case DISCARD:
+                    outputFrameHeight = devSettings->frameHeight / 2;
+                    COLORSWITCH(DISCARD)
+                    break;
+                case BOB:
+                    outputFrameHeight = devSettings->frameHeight / 2;
+                    COLORSWITCH(BOB)
+                    break;
+                //case BLEND:
+                    //outputFrameHeight = devSettings->frameHeight;
+                    //COLORSWITCH(BLEND, Blend?)
+                    //break;
+                default:
+                    break;
 			}
 			break;
 		case V4L2_FIELD_SEQ_BT:
 			interleaved = false;
 			inputFrameHeight = devSettings->frameHeight;
+			firstFrameElementIndex = (devSettings->frameWidth*devSettings->frameHeight) / 4;
+            secondFrameElementIndex = 0;
 			switch (devSettings->deintMethod) {
-			
-			}
+                case NONE:
+                    outputFrameHeight = devSettings->frameHeight;
+                    firstFrameElementIndex = 0;
+                    COLORSWITCH(SCAN)
+                    break;
+                case DISCARD:
+                    outputFrameHeight = devSettings->frameHeight / 2;
+                    COLORSWITCH(DISCARD)
+                    break;
+                case BOB:
+                    outputFrameHeight = devSettings->frameHeight / 2;
+                    COLORSWITCH(BOB)
+                    break;
+                //case BLEND:
+                    //outputFrameHeight = devSettings->frameHeight;
+                    //COLORSWITCH(BLEND, Blend?)
+                    //break;
+                default:
+                    break;
+            }
 			break;
 		case V4L2_FIELD_ALTERNATE:	// Only half frame recd, no deinterlacing allowed
 			interleaved = false;
 			inputFrameHeight = devSettings->frameHeight / 2;
 			outputFrameHeight = devSettings->frameHeight / 2;
-			COLORSWITCH(NONE, Frame)
+			COLORSWITCH(SCAN)
 			break;
 		default:
 			break;
@@ -238,7 +278,7 @@ void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSY
 
 			for (int x=0; x < pixelBufWidth; x++) {
 
-				xVal = (x + ((2*y)*pixelBufWidth)/pixelsPerElement;
+				xVal = (x + ((2*y)*pixelBufWidth))/pixelsPerElement;
 				pixelBuf[x + (y*pixelBufWidth)] = xVal;
 			}
 		}
@@ -266,7 +306,7 @@ void FrameRenderer::initRenderscript(int inputFrameHeight, bool interleaved, RSY
 
 	if (packedYUV) {    // packedYUV types use ScriptIntrinsicYuvToRGB
 		sp<const Element> inElement = Element::createPixel(rs, RS_TYPE_UNSIGNED_8, RS_KIND_PIXEL_YUV);
-		sp<const Type::Builder> yuvBuilder = Type.Builder(rs, inElement);
+		Type::Builder yuvBuilder = Type::Builder(rs, inElement);
 		yuvBuilder.setX(devSettings->frameWidth);
 		yuvBuilder.setY(inputFrameHeight);
 		yuvBuilder.setYuvFormat(yuvFmt);
@@ -360,7 +400,15 @@ void FrameRenderer::processRGB_SCAN(CaptureBuffer* inBuffer, ANativeWindow* wind
 	}
 }
 
-// TODO:  3/21/2016 - Add functions to process RGB deinterlacing (BOB and DISCARD)
+// TODO:  3/21/2016 - Implement processRGB_BOB and processRGB_DISCARD
+
+void FrameRenderer::processRGB_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+}
+
+void FrameRenderer::processRGB_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+}
 
 void FrameRenderer::processIntrinsic_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
