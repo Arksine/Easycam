@@ -353,8 +353,6 @@ int VideoDevice::closeDevice() {
 	return v4l2_close(fileDescriptor);
 }
 
-// TODO: 3/22/2016 - need to return a string rather than a char*.  Also need to set that up
-//                   in the device settings structure
 /**
  *   Helper function to attempt to find a specific device
  */
@@ -382,12 +380,16 @@ char* VideoDevice::detectDevice(const char* devLocation) {
 		return strdup("NO_DEVICE");
 	}
 
-	LOGI("Driver detected as: %s", cap.driver);
+	LOGI("V4L2 driver found: %s", cap.driver);
+	LOGI("V4L2 device brand: %s", cap.card);
+	LOGI("V4L2 device bus info : %s", cap.bus_info);
 
 	// Close Device
 	if(v4l2_close(fd) != SUCCESS_LOCAL) {
 		return strdup("NO_DEVICE");
 	}
+
+
 
     char* deviceName = strdup((const char*)cap.driver);
 	return deviceName;

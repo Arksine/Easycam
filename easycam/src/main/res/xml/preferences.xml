@@ -31,6 +31,12 @@
             android:summary="@string/pref_deinterlace_method_summary"
             android:persistent="true"
             android:defaultValue="@string/pref_deinterlace_method_default"/>
+        <CheckBoxPreference
+            android:key="pref_key_request_usb_permission"
+            android:title="@string/pref_request_usb_permission"
+            android:summary="@string/pref_request_usb_permission_summ"
+            android:persistent="true"
+            android:defaultValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory

@@ -9,6 +9,7 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
+import android.preference.CheckBoxPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
@@ -33,106 +34,83 @@ public class SettingsActivity extends Activity {
 
     private static String TAG = "SettingsActivity";
 
-	private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
-	private PendingIntent mPermissionIntent;
-	ArrayList<String> attachedUsbDeviceList = new ArrayList<>(5);
-
-	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-
-		public void onReceive(Context context, Intent intent) {
-			String action = intent.getAction();
-			if (ACTION_USB_PERMISSION.equals(action)) {
-				synchronized (this) {
-					UsbDevice uDevice = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-
-					if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-
-						if(uDevice != null) {
-
-							DeviceInfo tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
-									uDevice.getProductId(),
-									DeviceInfo.DeviceStandard.NTSC);
-
-							if (tmpDev != null) {
-								// We have permission to use this device, so add it to the
-								// list of attached usb devices
-								attachedUsbDeviceList.add(tmpDev.getDriver());
-							}
-						}
-					}
-					else {
-						Log.d(TAG, "permission denied for device " + uDevice);
-					}
-				}
-			}
-		}
-	};
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-		// Set up the intent necessary to get request access for a USB device
-		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
-		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-		this.registerReceiver(mUsbReceiver, filter);
-
-		enumerateUsbDevices();
-
-		Bundle args = new Bundle();
-		args.putStringArrayList("usblist", attachedUsbDeviceList);
-
-		SettingsFragment setFrag = new SettingsFragment();
-		setFrag.setArguments(args);
         getFragmentManager().beginTransaction()
-                .add(android.R.id.content, setFrag)
+                .add(android.R.id.content, new SettingsFragment())
                 .commit();
 
     }
 
-	private void enumerateUsbDevices() {
-
-		synchronized (JsonManager.lock) {
-
-			//Make sure the JsonManger has been initialized
-			if (!JsonManager.isInitialized())
-				JsonManager.initialize();
-
-			// Enumerate a list of currently connected Usb devices so we can pick out which
-			// ones are supported easycap devices
-			UsbManager mUsbManager = (UsbManager) this.getSystemService(Context.USB_SERVICE);
-			HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
-			Iterator<UsbDevice> deviceIterator = usbDeviceList.values().iterator();
-			while(deviceIterator.hasNext()){
-
-				UsbDevice uDevice = deviceIterator.next();
-
-				// If a supported device is listed in json list, request permission
-				// to access it
-				if(JsonManager.checkDevice(uDevice.getVendorId(), uDevice.getProductId())) {
-					mUsbManager.requestPermission(uDevice, mPermissionIntent);
-				}
-			}
-		}
-	}
-
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-
-		this.unregisterReceiver(mUsbReceiver);
-	}
-
     public static class SettingsFragment extends PreferenceFragment {
+
+		private boolean requestUsbPermission = true;
+
+		private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
+		private PendingIntent mPermissionIntent;
+		ArrayList<DeviceEntry> validStreamingDeviceList = new ArrayList<>(5);
 
 	    private class DeviceEntry {
 		    public String deviceName;
 		    public String deviceLocation;
 	    }
 
+		private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+
+			public void onReceive(Context context, Intent intent) {
+				String action = intent.getAction();
+				if (ACTION_USB_PERMISSION.equals(action)) {
+					synchronized (this) {
+						UsbDevice uDevice = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+
+						if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+
+							if(uDevice != null) {
+
+								DeviceInfo tmpDev;
+
+								synchronized (JsonManager.lock) {
+									tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
+									uDevice.getProductId(),
+									DeviceInfo.DeviceStandard.NTSC);
+								}
+
+								if (tmpDev != null) {
+
+									Log.d(TAG, "USB Device " + tmpDev.getDriver() + " on " +
+											tmpDev.getVendorID() + ":" +
+											tmpDev.getProductID() + " found");
+
+									// We have permission to use this device, so check and see
+									// if it has a v4l2 driver loaded
+									checkV4L2Device(tmpDev);
+								}
+								else {
+									Log.d(TAG, "Unable to retrive from devices.json: " + uDevice);
+								}
+							}
+							else {
+								Log.d(TAG, "USB Device not valid");
+							}
+						}
+						else {
+							Log.d(TAG, "permission denied for device " + uDevice);
+						}
+					}
+				}
+			}
+		};
+
         @Override
         public void onCreate(Bundle savedInstanceState) {
 	        super.onCreate(savedInstanceState);
+
+			// Set up the intent necessary to get request access for a USB device
+			mPermissionIntent = PendingIntent.getBroadcast(getActivity(), 0, new Intent(ACTION_USB_PERMISSION), 0);
+			IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+			getActivity().registerReceiver(mUsbReceiver, filter);
 
 	        // Load the preferences from an XML resource
 	        addPreferencesFromResource(R.xml.preferences);
@@ -141,8 +119,25 @@ public class SettingsActivity extends Activity {
 	        ListPreference selectDevice = (ListPreference) root.findPreference("pref_key_select_device");
 	        ListPreference selectStandard = (ListPreference) root.findPreference("pref_key_select_standard");
 	        ListPreference selectDeint = (ListPreference) root.findPreference("pref_key_deinterlace_method");
+			CheckBoxPreference usbPermission = (CheckBoxPreference) root.findPreference("pref_key_request_usb_permission");
 
-	        populateListPreference(root);
+			requestUsbPermission = usbPermission.isChecked();
+			Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
+			enumerateUsbDevices();
+
+
+
+			// Makes sure the list preference is populated with the correct device list
+			selectDevice.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+
+				@Override
+				public boolean onPreferenceClick(Preference preference) {
+
+					populateDeviceListPreference((ListPreference) preference);
+					return true;
+				}
+
+			});
 
 	        /**
 	         * Below are listeners for each of our device settings that update the summary based on the
@@ -183,65 +178,64 @@ public class SettingsActivity extends Activity {
 			        return true;
 		        }
 	        });
-
-
+			usbPermission.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+				@Override
+				public boolean onPreferenceChange(Preference preference, Object newValue) {
+					requestUsbPermission = (boolean)newValue;
+					validStreamingDeviceList.clear();
+					enumerateUsbDevices();
+					return true;
+				}
+			});
 
         }
 
-	    private void populateListPreference(PreferenceScreen root) {
+	    private void populateDeviceListPreference(ListPreference selectDevice) {
 
+			CharSequence[] entries;
+			CharSequence[] entryValues;
 
-		    ListPreference list = (ListPreference) root.findPreference("pref_key_select_device");
+		    if (validStreamingDeviceList.isEmpty()) {
 
-			ArrayList<DeviceEntry> deviceList = enumerateV4L2Devices();
-
-		    if (deviceList.isEmpty()) {
 			    Log.i(TAG, "No V4L2 compatible streaming devices found on system");
+				entries = new CharSequence[1];
+				entryValues = new CharSequence[1];
+
+				entries[0]  = "No devices found";
+				entryValues[0] = "NO_DEVICE";
+
+				selectDevice.setSummary(entries[0]);
 
 		    }
 		    else {
-			    CharSequence[] entries = new CharSequence[deviceList.size()];
-			    CharSequence[] entryValues = new CharSequence[deviceList.size()];
 
-			    for (int i = 0; i < deviceList.size(); i++) {
+			    entries = new CharSequence[validStreamingDeviceList.size()];
+			    entryValues = new CharSequence[validStreamingDeviceList.size()];
 
-				    entries[i] = deviceList.get(i).deviceName + " @ " +
-						    deviceList.get(i).deviceLocation;
-				    entryValues[i] = deviceList.get(i).deviceName + ":" +
-						    deviceList.get(i).deviceLocation;
+			    for (int i = 0; i < validStreamingDeviceList.size(); i++) {
+
+				    entries[i] = validStreamingDeviceList.get(i).deviceName + " @ " +
+							validStreamingDeviceList.get(i).deviceLocation;
+				    entryValues[i] = validStreamingDeviceList.get(i).deviceName + ":" +
+							validStreamingDeviceList.get(i).deviceLocation;
 
 			    }
-
-
-			    list.setEntries(entries);
-			    list.setEntryValues(entryValues);
 		    }
+
+			selectDevice.setEntries(entries);
+			selectDevice.setEntryValues(entryValues);
 	    }
 
 	    /**
-	     * enumerateDevices - Checks the system for V4L2 compatible video streaming devices, then
+	     * checkV4L2Device - Checks the system for V4L2 compatible video streaming devices, then
 	     *                    checks to see if that device has stored default settings in the
 	     *                    devices.json file.
 	     *
 	     */
-	    private ArrayList<DeviceEntry> enumerateV4L2Devices () {
+	    private boolean checkV4L2Device (DeviceInfo dev) {
 
 			String devLocation;
 			String driver;      // The driver name returned from V4L2
-			ArrayList<DeviceEntry> deviceList = new ArrayList<>(5);
-			ArrayList<String> attachedUsbDeviceList = getArguments().getStringArrayList("usblist");
-
-			// make sure getArguments actually returned something
-			if (attachedUsbDeviceList == null) {
-				Log.e(TAG, "Error recieving device list");
-				return deviceList;
-			}
-
-			// make sure the usb device list is actually populated
-			if (attachedUsbDeviceList.isEmpty()) {
-				Log.i(TAG, "No compatible usb devices found on system");
-				return deviceList;
-			}
 
 			/*
 			Iterate through the /dev/videoX devices located on the system
@@ -249,38 +243,89 @@ public class SettingsActivity extends Activity {
 			If so, add it to the list that populates the preference fragment
 			 */
 			for (int i = 0; i < 99; i++) {
+
 				devLocation = "/dev/video" + String.valueOf(i);
 				File test = new File(devLocation);
 				if (test.exists()) {
 
+					// TODO: 3/24/2016
+					// 		 right now the JNI function findDevice takes a location (file name) and returns
+					//       the the driver name if the device is valid.  It would be better
+					//		 for it to take bus info from the USB device and match it with
+					//       what we have here.  Its possible that we have multiple V4l2 device
+					//       that use the same driver, and the current implementation always
+					//       selects the first one found.
 					driver = NativeEasyCapture.findDevice(devLocation);
 
-					// Check to see if a valid device was found
-					if (driver.compareTo("NO_DEVICE") != 0){
-						/*
-						Iterate through the list of attached Usb devices that we have been
-						granted permission to use.  If that device driver matches the one
-						return from v4l2, add it to the list of supported devices
-						 */
-						for (String usbDev : attachedUsbDeviceList) {
-							if (driver.compareTo(usbDev) == 0) {
-								DeviceEntry device = new DeviceEntry();
-								device.deviceName = driver;
-								device.deviceLocation = devLocation;
-								deviceList.add(device);
+					if (driver.compareTo(dev.getDriver()) == 0) {
+						DeviceEntry device = new DeviceEntry();
+						device.deviceName = driver;
+						device.deviceLocation = devLocation;
+						validStreamingDeviceList.add(device);
 
-								// Since we have added a device we can break this loop
-								break;
-							}
-						}
+						Log.i(TAG, "V4L2 device " + device.deviceName + " found at " +
+							device.deviceLocation);
+						return true;
 					}
 				}
 			}
 
-
-			return deviceList;
-
+			return false;
 	    }
+
+		private void enumerateUsbDevices() {
+
+			synchronized (JsonManager.lock) {
+
+				//Make sure the JsonManger has been initialized
+				if (!JsonManager.isInitialized())
+					JsonManager.initialize();
+
+
+				// Enumerate a list of currently connected Usb devices so we can pick out which
+				// ones are supported easycap devices
+				UsbManager mUsbManager = (UsbManager) getActivity().getSystemService(Context.USB_SERVICE);
+				HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
+				Iterator<UsbDevice> deviceIterator = usbDeviceList.values().iterator();
+				while(deviceIterator.hasNext()){
+
+					UsbDevice uDevice = deviceIterator.next();
+
+					// If a supported device is listed in json list, request permission
+					// to access it
+					if(JsonManager.checkDevice(uDevice.getVendorId(), uDevice.getProductId())) {
+
+						Log.i(TAG, "Supported usb device found: " + uDevice.toString());
+						Log.i(TAG, "Device ID: " + uDevice.getDeviceId());
+						Log.i(TAG, "Device Name: " + uDevice.getDeviceName() );
+						Log.i(TAG, "Vendor: ID " + uDevice.getVendorId());
+						Log.i(TAG, "Product ID: " + uDevice.getProductId());
+
+						// If requestUsbPermission is selected in user preferences, then
+						// the usbmanager will broadcast the request permission intent.  Otherwise
+						// we will access the device directly.  My expectation is that with usb permission
+						// I will be able to access the device on systems with SELinux enforcing.
+						if (requestUsbPermission) {
+							mUsbManager.requestPermission(uDevice, mPermissionIntent);
+						}
+						else {
+							DeviceInfo tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
+									uDevice.getProductId(), DeviceInfo.DeviceStandard.NTSC);
+
+							checkV4L2Device(tmpDev);
+						}
+
+					}
+				}
+			}
+		}
+
+		@Override
+		public void onDestroy() {
+			super.onDestroy();
+
+			getActivity().unregisterReceiver(mUsbReceiver);
+		}
 
     }
 }
