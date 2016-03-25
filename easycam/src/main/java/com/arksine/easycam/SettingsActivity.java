@@ -21,6 +21,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+/**
+ * TODO: 3/24/2016
+ * Need to move requestpermission to the easycamview class.  Otherwise the application will
+ * attempt to acesss the device without permission when its launched without entering settings
+ */
 
 /**
  * TODO:  Create a fragment to Add and Edit entries in the devices.json file.
@@ -47,6 +52,7 @@ public class SettingsActivity extends Activity {
     public static class SettingsFragment extends PreferenceFragment {
 
 		private boolean requestUsbPermission = true;
+		ListPreference selectDevice;
 
 		private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
 		private PendingIntent mPermissionIntent;
@@ -83,9 +89,11 @@ public class SettingsActivity extends Activity {
 											tmpDev.getVendorID() + ":" +
 											tmpDev.getProductID() + " found");
 
-									// We have permission to use this device, so check and see
-									// if it has a v4l2 driver loaded
-									checkV4L2Device(tmpDev);
+									// If the device has a valid v4l2 driver, its added to the supported
+									// device list and the Select Device ListPreference is updated
+									if (checkV4L2Device(tmpDev)) {
+										populateDeviceListPreference();
+									}
 								}
 								else {
 									Log.d(TAG, "Unable to retrive from devices.json: " + uDevice);
@@ -116,28 +124,15 @@ public class SettingsActivity extends Activity {
 	        addPreferencesFromResource(R.xml.preferences);
 
 	        PreferenceScreen root = this.getPreferenceScreen();
-	        ListPreference selectDevice = (ListPreference) root.findPreference("pref_key_select_device");
+	        selectDevice = (ListPreference) root.findPreference("pref_key_select_device");
 	        ListPreference selectStandard = (ListPreference) root.findPreference("pref_key_select_standard");
 	        ListPreference selectDeint = (ListPreference) root.findPreference("pref_key_deinterlace_method");
 			CheckBoxPreference usbPermission = (CheckBoxPreference) root.findPreference("pref_key_request_usb_permission");
 
 			requestUsbPermission = usbPermission.isChecked();
 			Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
+
 			enumerateUsbDevices();
-
-
-
-			// Makes sure the list preference is populated with the correct device list
-			selectDevice.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
-
-				@Override
-				public boolean onPreferenceClick(Preference preference) {
-
-					populateDeviceListPreference((ListPreference) preference);
-					return true;
-				}
-
-			});
 
 	        /**
 	         * Below are listeners for each of our device settings that update the summary based on the
@@ -182,7 +177,6 @@ public class SettingsActivity extends Activity {
 				@Override
 				public boolean onPreferenceChange(Preference preference, Object newValue) {
 					requestUsbPermission = (boolean)newValue;
-					validStreamingDeviceList.clear();
 					enumerateUsbDevices();
 					return true;
 				}
@@ -190,7 +184,7 @@ public class SettingsActivity extends Activity {
 
         }
 
-	    private void populateDeviceListPreference(ListPreference selectDevice) {
+	    private void populateDeviceListPreference() {
 
 			CharSequence[] entries;
 			CharSequence[] entryValues;
@@ -287,6 +281,10 @@ public class SettingsActivity extends Activity {
 				UsbManager mUsbManager = (UsbManager) getActivity().getSystemService(Context.USB_SERVICE);
 				HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
 				Iterator<UsbDevice> deviceIterator = usbDeviceList.values().iterator();
+
+				// Make sure the device list is empty before enumeration
+				validStreamingDeviceList.clear();
+
 				while(deviceIterator.hasNext()){
 
 					UsbDevice uDevice = deviceIterator.next();
@@ -312,7 +310,11 @@ public class SettingsActivity extends Activity {
 							DeviceInfo tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
 									uDevice.getProductId(), DeviceInfo.DeviceStandard.NTSC);
 
-							checkV4L2Device(tmpDev);
+							// If the device has a valid v4l2 driver, its added to the supported
+							// device list and the Select Device ListPreference is updated
+							if (checkV4L2Device(tmpDev)) {
+								populateDeviceListPreference();
+							}
 						}
 
 					}

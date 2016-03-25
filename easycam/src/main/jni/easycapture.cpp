@@ -133,42 +133,20 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	jmethodID getFrameHeight = jenv->GetMethodID(devInfo, "getFrameHeight","()I");
 	jmethodID getNumBuffers = jenv->GetMethodID(devInfo, "getNumBuffers","()I");
 	jmethodID getInput = jenv->GetMethodID(devInfo, "getInput", "()I");
-	jmethodID getDevStandard = jenv->GetMethodID(devInfo, "getDevStandard",
-	                                             "()Lcom/arksine/easycam/DeviceInfo$DeviceStandard");
-	jmethodID getPixFmt = jenv->GetMethodID(devInfo, "getPixFmt",
-	                                        "()Lcom/arksine/easycam/DeviceInfo$PixelFormat");
-	jmethodID getDeinterlace = jenv->GetMethodID(devInfo, "getDeinterlace",
-	                                             "()Lcom/arksine/easycam/DeviceInfo$DeintMethod");
-	jmethodID getFieldType = jenv->GetMethodID(devInfo, "getFieldType",
-	                                      "()Lcom/arksine/easycam/DeviceInfo$FieldType");
+	jmethodID getDevStdIdx = jenv->GetMethodID(devInfo, "getDevStdIdx", "()I);
+	jmethodID getPixFmtIdx = jenv->GetMethodID(devInfo, "getPixFmtIdx", "()I");
+	jmethodID getDeinterlaceIdx = jenv->GetMethodID(devInfo, "getDeinterlaceIdx", "()I);
+	jmethodID getFieldTypeIdx = jenv->GetMethodID(devInfo, "getFieldTypeIdx", "()I");
 
-	// Get the enumerations first, as they also have methods well need to get
-	jobject devStd = jenv->CallObjectMethod(dInfo, getDevStandard);
-	jobject pixFmt = jenv->CallObjectMethod(dInfo, getPixFmt);
-	jobject deint = jenv->CallObjectMethod(dInfo, getDeinterlace);
-	jobject field = jenv->CallObjectMethod(dInfo, getFieldType);
-
-	jclass standard = jenv->GetObjectClass(devStd);
-	jmethodID getStdIndex =jenv->GetMethodID(standard, "getIndex", "()I");
-
-	jclass pixelFormat = jenv->GetObjectClass(pixFmt);
-	jmethodID getPixFmtIndex = jenv->GetMethodID(pixelFormat, "getIndex", "()I");
-
-	jclass deinterlace = jenv->GetObjectClass(deint);
-	jmethodID getDeintIndex = jenv->GetMethodID(deinterlace, "getIndex", "()I");
-
-	jclass fieldType = jenv->GetObjectClass(field);
-	jmethodID getFieldIndex = jenv->GetMethodID(fieldType, "getIndex", "()I");
-
-	// TODO:  Need to be absolutely sure that when we release UTF Chars we aren't deleting the string
-	//        in the device settings
 	jstring tmpStr = (jstring)jenv->CallObjectMethod(dInfo, getDriver);
-	devSets->driver = (char*)jenv->GetStringUTFChars(tmpStr, 0);
-	jenv->ReleaseStringUTFChars(tmpStr, devSets->driver);
+	const char* tmpDrv = jenv->GetStringUTFChars(tmpStr, 0);
+	devSets->driver = strdup(tmpDrv);
+	jenv->ReleaseStringUTFChars(tmpStr, tmpDrv);
 
 	tmpStr = (jstring)jenv->CallObjectMethod(dInfo, getLocation);
-	devSets->location = (char*)jenv->GetStringUTFChars(tmpStr, 0);
-	jenv->ReleaseStringUTFChars(tmpStr, devSets->location);
+	const char* tmpLoc = jenv->GetStringUTFChars(tmpStr, 0);
+	devSets->location = strdup(tmpLoc);
+	jenv->ReleaseStringUTFChars(tmpStr, tmpLoc);
 
 	devSets->frameWidth = (int)jenv->CallIntMethod(dInfo, getFrameWidth);
 	devSets->frameHeight = (int)jenv->CallIntMethod(dInfo, getFrameHeight);
@@ -178,7 +156,7 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	int tmpIndex = 0;
 
 	// Set Video Standard
-	tmpIndex = (int)jenv->CallIntMethod(devStd, getStdIndex);
+	tmpIndex = (int)jenv->CallIntMethod(dInfo, getDevStdIdx);
 	switch (tmpIndex) {
 		case 0:     // NTSC
 			devSets->videoStandard = V4L2_STD_NTSC;
@@ -194,7 +172,7 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	}
 
 	// Set Pixel Format
-	tmpIndex = (int)jenv->CallIntMethod(pixFmt, getPixFmtIndex);
+	tmpIndex = (int)jenv->CallIntMethod(dInfo, getPixFmtIdx);
 	switch (tmpIndex) {
 		case 0:     // YUYV
 			devSets->pixelFormat = V4L2_PIX_FMT_YUYV;
@@ -218,7 +196,7 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	}
 
 	// Set Deinterlace Method
-	tmpIndex = (int)jenv->CallIntMethod(deint, getDeintIndex);
+	tmpIndex = (int)jenv->CallIntMethod(dInfo, getDeinterlaceIdx);
 	switch (tmpIndex) {
 		case 0:     // NONE
 			devSets->deintMethod = NONE;
@@ -239,7 +217,7 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	}
 
 	// Set Field Type
-	tmpIndex = (int)jenv->CallIntMethod(field, getFieldIndex);
+	tmpIndex = (int)jenv->CallIntMethod(dInfo, getFieldTypeIdx);
 	switch (tmpIndex) {
 		case 0:     // NONE (Progressive Scan)
 			devSets->field = V4L2_FIELD_NONE;

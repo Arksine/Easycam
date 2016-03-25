@@ -181,12 +181,20 @@ public class DeviceInfo {
 		return devStd;
 	}
 
+	public int getDevStdIdx() {
+		return devStd.getIndex();
+	}
+
 	public void setDevStd(DeviceStandard std) {
 		this.devStd = std;
 	}
 
 	public PixelFormat getPixFmt() {
 		return pixFmt;
+	}
+
+	public int getPixFmtIdx() {
+		return pixFmt.getIndex();
 	}
 
 	public void setPixFmt(PixelFormat pixFmt) {
@@ -197,12 +205,20 @@ public class DeviceInfo {
 		return deinterlace;
 	}
 
+	public int getDeinterlaceIdx() {
+		return deinterlace.getIndex();
+	}
+
 	public void setDeinterlace(DeintMethod deinterlace) {
 		this.deinterlace = deinterlace;
 	}
 
 	public FieldType getFieldType() {
 		return field;
+	}
+
+	public int getFieldTypeIdx() {
+		return field.getIndex();
 	}
 
 	public void setFieldType(FieldType field) {

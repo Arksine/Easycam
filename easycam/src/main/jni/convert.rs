@@ -12,8 +12,6 @@ int32_t firstElement;   //  The first Element to be processed. For interleaved f
 						//  0 is the first element of the first half, and ((framewidth / 2)* frameheight) / 2,
 						//  which is halfway though the input allocation
 
-//TODO: Fix the comments for each kernel.  They process fields and frames now.
-
 // Converts YUYV pixels from the input allocation into RGBA pixels.  This kernel is called on a
 // buffer that contains x-index values for the input allocation.  This allows this kernel to
 // convert entire frames, interleaved fields, and sequential fields.
