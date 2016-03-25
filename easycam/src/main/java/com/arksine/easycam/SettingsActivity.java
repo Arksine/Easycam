@@ -51,86 +51,28 @@ public class SettingsActivity extends Activity {
 
     public static class SettingsFragment extends PreferenceFragment {
 
-		private boolean requestUsbPermission = true;
-		ListPreference selectDevice;
-
-		private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
-		private PendingIntent mPermissionIntent;
-		ArrayList<DeviceEntry> validStreamingDeviceList = new ArrayList<>(5);
-
 	    private class DeviceEntry {
+			public String deviceDescription;
 		    public String deviceName;
-		    public String deviceLocation;
+
 	    }
-
-		private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-
-			public void onReceive(Context context, Intent intent) {
-				String action = intent.getAction();
-				if (ACTION_USB_PERMISSION.equals(action)) {
-					synchronized (this) {
-						UsbDevice uDevice = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-
-						if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-
-							if(uDevice != null) {
-
-								DeviceInfo tmpDev;
-
-								synchronized (JsonManager.lock) {
-									tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
-									uDevice.getProductId(),
-									DeviceInfo.DeviceStandard.NTSC);
-								}
-
-								if (tmpDev != null) {
-
-									Log.d(TAG, "USB Device " + tmpDev.getDriver() + " on " +
-											tmpDev.getVendorID() + ":" +
-											tmpDev.getProductID() + " found");
-
-									// If the device has a valid v4l2 driver, its added to the supported
-									// device list and the Select Device ListPreference is updated
-									if (checkV4L2Device(tmpDev)) {
-										populateDeviceListPreference();
-									}
-								}
-								else {
-									Log.d(TAG, "Unable to retrive from devices.json: " + uDevice);
-								}
-							}
-							else {
-								Log.d(TAG, "USB Device not valid");
-							}
-						}
-						else {
-							Log.d(TAG, "permission denied for device " + uDevice);
-						}
-					}
-				}
-			}
-		};
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
 	        super.onCreate(savedInstanceState);
 
-			// Set up the intent necessary to get request access for a USB device
-			mPermissionIntent = PendingIntent.getBroadcast(getActivity(), 0, new Intent(ACTION_USB_PERMISSION), 0);
-			IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-			getActivity().registerReceiver(mUsbReceiver, filter);
+
+
 
 	        // Load the preferences from an XML resource
 	        addPreferencesFromResource(R.xml.preferences);
 
 	        PreferenceScreen root = this.getPreferenceScreen();
-	        selectDevice = (ListPreference) root.findPreference("pref_key_select_device");
+	        ListPreference selectDevice = (ListPreference) root.findPreference("pref_key_select_device");
 	        ListPreference selectStandard = (ListPreference) root.findPreference("pref_key_select_standard");
 	        ListPreference selectDeint = (ListPreference) root.findPreference("pref_key_deinterlace_method");
-			CheckBoxPreference usbPermission = (CheckBoxPreference) root.findPreference("pref_key_request_usb_permission");
 
-			requestUsbPermission = usbPermission.isChecked();
-			Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
+
 
 			enumerateUsbDevices();
 
@@ -173,18 +115,10 @@ public class SettingsActivity extends Activity {
 			        return true;
 		        }
 	        });
-			usbPermission.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-				@Override
-				public boolean onPreferenceChange(Preference preference, Object newValue) {
-					requestUsbPermission = (boolean)newValue;
-					enumerateUsbDevices();
-					return true;
-				}
-			});
 
         }
 
-	    private void populateDeviceListPreference() {
+	    private void populateDeviceListPreference(ArrayList<DeviceEntry> validStreamingDeviceList) {
 
 			CharSequence[] entries;
 			CharSequence[] entryValues;
@@ -208,10 +142,8 @@ public class SettingsActivity extends Activity {
 
 			    for (int i = 0; i < validStreamingDeviceList.size(); i++) {
 
-				    entries[i] = validStreamingDeviceList.get(i).deviceName + " @ " +
-							validStreamingDeviceList.get(i).deviceLocation;
-				    entryValues[i] = validStreamingDeviceList.get(i).deviceName + ":" +
-							validStreamingDeviceList.get(i).deviceLocation;
+				    entries[i] = validStreamingDeviceList.get(i).deviceDescription;
+				    entryValues[i] = validStreamingDeviceList.get(i).deviceName;
 
 			    }
 		    }
@@ -269,6 +201,8 @@ public class SettingsActivity extends Activity {
 
 		private void enumerateUsbDevices() {
 
+			ArrayList<DeviceEntry> validStreamingDeviceList = new ArrayList<>(5);
+
 			synchronized (JsonManager.lock) {
 
 				//Make sure the JsonManger has been initialized
@@ -285,49 +219,34 @@ public class SettingsActivity extends Activity {
 				// Make sure the device list is empty before enumeration
 				validStreamingDeviceList.clear();
 
-				while(deviceIterator.hasNext()){
+				while(deviceIterator.hasNext()) {
 
 					UsbDevice uDevice = deviceIterator.next();
 
 					// If a supported device is listed in json list, request permission
 					// to access it
-					if(JsonManager.checkDevice(uDevice.getVendorId(), uDevice.getProductId())) {
+					if (JsonManager.checkDevice(uDevice.getVendorId(), uDevice.getProductId())) {
 
 						Log.i(TAG, "Supported usb device found: " + uDevice.toString());
 						Log.i(TAG, "Device ID: " + uDevice.getDeviceId());
-						Log.i(TAG, "Device Name: " + uDevice.getDeviceName() );
+						Log.i(TAG, "Device Name: " + uDevice.getDeviceName());
 						Log.i(TAG, "Vendor: ID " + uDevice.getVendorId());
 						Log.i(TAG, "Product ID: " + uDevice.getProductId());
 
-						// If requestUsbPermission is selected in user preferences, then
-						// the usbmanager will broadcast the request permission intent.  Otherwise
-						// we will access the device directly.  My expectation is that with usb permission
-						// I will be able to access the device on systems with SELinux enforcing.
-						if (requestUsbPermission) {
-							mUsbManager.requestPermission(uDevice, mPermissionIntent);
-						}
-						else {
-							DeviceInfo tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
-									uDevice.getProductId(), DeviceInfo.DeviceStandard.NTSC);
+						DeviceEntry devEntry = new DeviceEntry();
+						devEntry.deviceDescription = uDevice.toString();
+						devEntry.deviceName = uDevice.getDeviceName();
 
-							// If the device has a valid v4l2 driver, its added to the supported
-							// device list and the Select Device ListPreference is updated
-							if (checkV4L2Device(tmpDev)) {
-								populateDeviceListPreference();
-							}
-						}
+						validStreamingDeviceList.add(devEntry);
 
 					}
 				}
+
+				populateDeviceListPreference(validStreamingDeviceList);
 			}
 		}
 
-		@Override
-		public void onDestroy() {
-			super.onDestroy();
 
-			getActivity().unregisterReceiver(mUsbReceiver);
-		}
 
     }
 }

@@ -3,9 +3,15 @@
 package com.arksine.easycam;
 
 
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Rect;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -33,6 +39,59 @@ SurfaceHolder.Callback, Runnable {
     private volatile SurfaceHolder mHolder;
 
     SharedPreferences sharedPrefs;
+
+    private boolean requestUsbPermission = true;
+
+    private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
+    private PendingIntent mPermissionIntent;
+
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (ACTION_USB_PERMISSION.equals(action)) {
+                synchronized (this) {
+                    UsbDevice uDevice = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+
+                        if(uDevice != null) {
+
+                            DeviceInfo tmpDev;
+
+                            synchronized (JsonManager.lock) {
+                                tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
+                                        uDevice.getProductId(),
+                                        DeviceInfo.DeviceStandard.NTSC);
+                            }
+
+                            if (tmpDev != null) {
+
+                                Log.d(TAG, "USB Device " + tmpDev.getDriver() + " on " +
+                                        tmpDev.getVendorID() + ":" +
+                                        tmpDev.getProductID() + " found");
+
+                                // If the device has a valid v4l2 driver, its added to the supported
+                                // device list and the Select Device ListPreference is updated
+                                if (checkV4L2Device(tmpDev)) {
+                                    populateDeviceListPreference();
+                                }
+                            }
+                            else {
+                                Log.d(TAG, "Unable to retrive from devices.json: " + uDevice);
+                            }
+                        }
+                        else {
+                            Log.d(TAG, "USB Device not valid");
+                        }
+                    }
+                    else {
+                        Log.d(TAG, "permission denied for device " + uDevice);
+                    }
+                }
+            }
+        }
+    };
 
 
     public EasycamView(Context context) {
@@ -109,8 +168,17 @@ SurfaceHolder.Callback, Runnable {
          * the code below.  I can also check the UsbManager hasPermission function on the usb device
          * to
          *
-         * Need to put the code below into an initview function.
+         *
          */
+
+
+         requestUsbPermission = usbPermission.isChecked();
+         Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
+
+
+    }
+
+    private void initResume() {
 
         capDevice = new NativeEasyCapture(sharedPrefs, appContext);
         if(!capDevice.isDeviceConnected())
@@ -127,7 +195,7 @@ SurfaceHolder.Callback, Runnable {
         Log.i(TAG, "View resumed");
 
 
-	    // Attempt to start streaming
+        // Attempt to start streaming
         if (!capDevice.streamOn()) {
             CharSequence text = "Unable to stream video from device";
             int duration = Toast.LENGTH_SHORT;
@@ -167,13 +235,18 @@ SurfaceHolder.Callback, Runnable {
     public void surfaceCreated(SurfaceHolder holder) {
         Log.d(TAG, "Surface created");
 
+        // Set up the intent necessary to get request access for a USB device
+        mPermissionIntent = PendingIntent.getBroadcast(getContext(), 0, new Intent(ACTION_USB_PERMISSION), 0);
+        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+        getContext().registerReceiver(mUsbReceiver, filter);
+
         resume();
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.d(TAG, "Surface destroyed");
-
+        getContext().unregisterReceiver(mUsbReceiver);
         pause();
     }
 
@@ -185,4 +258,5 @@ SurfaceHolder.Callback, Runnable {
         setViewingWindow (winWidth, winHeight);
 
     }
+
 }
