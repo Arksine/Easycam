@@ -128,14 +128,14 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	// Add Usb Vendor ID and Usb Product ID if we think we need them.
 	jclass devInfo = jenv->GetObjectClass(dInfo);
 	jmethodID getDriver = jenv->GetMethodID(devInfo, "getDriver", "()Ljava/lang/String");
-	jmethodID getLocation = jenv->GetMethodID(devInfo, "getLocation","()Ljava/lang/String" );
+	jmethodID getLocation = jenv->GetMethodID(devInfo, "getLocation","()Ljava/lang/String");
 	jmethodID getFrameWidth = jenv->GetMethodID(devInfo, "getFrameWidth","()I");
 	jmethodID getFrameHeight = jenv->GetMethodID(devInfo, "getFrameHeight","()I");
 	jmethodID getNumBuffers = jenv->GetMethodID(devInfo, "getNumBuffers","()I");
 	jmethodID getInput = jenv->GetMethodID(devInfo, "getInput", "()I");
-	jmethodID getDevStdIdx = jenv->GetMethodID(devInfo, "getDevStdIdx", "()I);
+	jmethodID getDevStdIdx = jenv->GetMethodID(devInfo, "getDevStdIdx", "()I");
 	jmethodID getPixFmtIdx = jenv->GetMethodID(devInfo, "getPixFmtIdx", "()I");
-	jmethodID getDeinterlaceIdx = jenv->GetMethodID(devInfo, "getDeinterlaceIdx", "()I);
+	jmethodID getDeinterlaceIdx = jenv->GetMethodID(devInfo, "getDeinterlaceIdx", "()I");
 	jmethodID getFieldTypeIdx = jenv->GetMethodID(devInfo, "getFieldTypeIdx", "()I");
 
 	jstring tmpStr = (jstring)jenv->CallObjectMethod(dInfo, getDriver);

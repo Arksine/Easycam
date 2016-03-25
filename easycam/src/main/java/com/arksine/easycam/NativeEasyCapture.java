@@ -83,7 +83,7 @@ public class NativeEasyCapture implements EasyCapture {
     private boolean getDeviceSettings (SharedPreferences sharedPrefs) {
 
         String prefSelectDevice = sharedPrefs.getString("pref_key_select_device", "NO_DEVICE");
-        if (prefSelectDevice.compareTo("NO_DEVICE") == 0){
+        if (prefSelectDevice.equals("NO_DEVICE")){
 	        Log.e(TAG, "No device selected in preferences");
             // No device selected, exit.
             currentDevice = null;
@@ -93,13 +93,20 @@ public class NativeEasyCapture implements EasyCapture {
         String prefTVStandard = sharedPrefs.getString("pref_key_select_standard", "NTSC");
         DeviceInfo.DeviceStandard std = DeviceInfo.DeviceStandard.valueOf(prefTVStandard);
 
-        // Split the string into two parts.  The first part is the driver name, the second is the location
-        String[] devAndLoc = prefSelectDevice.split(":");
 
-        currentDevice = JsonManager.getDevice(devAndLoc[0], std);
+        // Split the string into two parts.  The first part is the usb device name, the second is the driver name
+        String[] devDesc = prefSelectDevice.split(":");
+
+        if (devDesc.length < 2) {
+            Log.e(TAG, "Error parsing Device settings");
+            // Device was not in devices.json, exit
+            return false;
+        }
+
+        currentDevice = JsonManager.getDevice(devDesc[1], std);
 
         if (currentDevice == null) {
-	        Log.e(TAG, "Unable to find device " + devAndLoc[0] + " in devices.json");
+	        Log.e(TAG, "Unable to find device " + devDesc[1] + " in devices.json");
             // Device was not in devices.json, exit
             return false;
         }
@@ -107,7 +114,13 @@ public class NativeEasyCapture implements EasyCapture {
         // Set the TV Standard, device location, and deinterlace method as they are not device specific and thus
         // not stored in devices.json
         currentDevice.setDevStd(std);
-        currentDevice.setLocation(devAndLoc[1]);
+
+
+        if (!setV4L2Location()) {
+            Log.e(TAG, "Unable to V4L2 driver for " + devDesc[1] + " @ " + devDesc[0]);
+            // Device was not in devices.json, exit
+            return false;
+        }
 
         String deintMethod = sharedPrefs.getString("pref_key_deinterlace_method", "NONE");
 	    currentDevice.setDeinterlace(DeviceInfo.DeintMethod.valueOf(deintMethod));
@@ -141,10 +154,49 @@ public class NativeEasyCapture implements EasyCapture {
 	public boolean streamOn() {
         return startStreaming();
 	}
-    
+
     static public String findDevice(String dName)
     {
     	return detectDevice(dName);
+    }
+
+    private boolean setV4L2Location () {
+
+        String devLocation;
+        String driver;      // The driver name returned from V4L2
+
+			/*
+			Iterate through the /dev/videoX devices located on the system
+			to see if the driver for the current usb device has been loaded.
+			If so, add it to the list that populates the preference fragment
+			 */
+        for (int i = 0; i < 99; i++) {
+
+            devLocation = "/dev/video" + String.valueOf(i);
+            File test = new File(devLocation);
+            if (test.exists()) {
+
+                // TODO: 3/24/2016
+                // 		 right now the JNI function findDevice takes a location (file name) and returns
+                //       the the driver name if the device is valid.  It would be better
+                //		 for it to take bus info from the USB device and match it with
+                //       what we have here.  Its possible that we have multiple V4l2 device
+                //       that use the same driver, and the current implementation always
+                //       selects the first one found.
+                driver = detectDevice(devLocation);
+
+                if (driver.equals(currentDevice.getDriver())) {
+
+                    currentDevice.setLocation(devLocation);
+
+                    Log.i(TAG, "V4L2 device " + currentDevice.getDriver() + " found at " +
+                            devLocation);
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
 }

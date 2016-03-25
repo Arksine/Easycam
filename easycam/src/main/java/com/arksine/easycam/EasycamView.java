@@ -19,6 +19,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.Toast;
 
+import java.util.HashMap;
+
 /**
  *  Class: EasycamView
  *
@@ -29,7 +31,7 @@ SurfaceHolder.Callback, Runnable {
 
 	private static String TAG = "EasycamView";
 	
-	private EasyCapture capDevice;
+	private EasyCapture capDevice = null;
 	
 	private Thread mThread = null;
 
@@ -39,8 +41,6 @@ SurfaceHolder.Callback, Runnable {
     private volatile SurfaceHolder mHolder;
 
     SharedPreferences sharedPrefs;
-
-    private boolean requestUsbPermission = true;
 
     private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
     private PendingIntent mPermissionIntent;
@@ -57,29 +57,7 @@ SurfaceHolder.Callback, Runnable {
 
                         if(uDevice != null) {
 
-                            DeviceInfo tmpDev;
-
-                            synchronized (JsonManager.lock) {
-                                tmpDev = JsonManager.getDevice(uDevice.getVendorId(),
-                                        uDevice.getProductId(),
-                                        DeviceInfo.DeviceStandard.NTSC);
-                            }
-
-                            if (tmpDev != null) {
-
-                                Log.d(TAG, "USB Device " + tmpDev.getDriver() + " on " +
-                                        tmpDev.getVendorID() + ":" +
-                                        tmpDev.getProductID() + " found");
-
-                                // If the device has a valid v4l2 driver, its added to the supported
-                                // device list and the Select Device ListPreference is updated
-                                if (checkV4L2Device(tmpDev)) {
-                                    populateDeviceListPreference();
-                                }
-                            }
-                            else {
-                                Log.d(TAG, "Unable to retrive from devices.json: " + uDevice);
-                            }
+                           initThread();
                         }
                         else {
                             Log.d(TAG, "USB Device not valid");
@@ -172,13 +150,34 @@ SurfaceHolder.Callback, Runnable {
          */
 
 
-         requestUsbPermission = usbPermission.isChecked();
-         Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
+        boolean requestUsbPermission = sharedPrefs.getBoolean("pref_key_request_usb_permission", true);
+        Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
 
+        String prefSelectDevice = sharedPrefs.getString("pref_key_select_device", "NO_DEVICE");
+        if (prefSelectDevice.equals("NO_DEVICE")){
+            Log.e(TAG, "No device selected in preferences");
+            // No device selected, exit.
+            return;
+        }
+
+        String[] devDesc = prefSelectDevice.split(":");
+
+        UsbManager mUsbManager = (UsbManager) getContext().getSystemService(Context.USB_SERVICE);
+        HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
+        UsbDevice uDevice = usbDeviceList.get(devDesc[0]);
+
+        // If the request usb permission is set in user settings and the device does not have
+        // permission then we will request permission
+        if(requestUsbPermission && !(mUsbManager.hasPermission(uDevice))) {
+            mUsbManager.requestPermission(uDevice, mPermissionIntent);
+        }
+        else {
+            initThread();
+        }
 
     }
 
-    private void initResume() {
+    private void initThread() {
 
         capDevice = new NativeEasyCapture(sharedPrefs, appContext);
         if(!capDevice.isDeviceConnected())
@@ -227,7 +226,10 @@ SurfaceHolder.Callback, Runnable {
                 }
             }
         }
-        capDevice.stop();
+
+        if (capDevice != null)
+            capDevice.stop();
+
         Log.i(TAG, "View paused");
     }
 

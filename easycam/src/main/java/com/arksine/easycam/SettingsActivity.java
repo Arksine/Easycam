@@ -1,22 +1,16 @@
 package com.arksine.easycam;
 
 import android.app.Activity;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
-import android.preference.CheckBoxPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 import android.util.Log;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -61,9 +55,6 @@ public class SettingsActivity extends Activity {
         public void onCreate(Bundle savedInstanceState) {
 	        super.onCreate(savedInstanceState);
 
-
-
-
 	        // Load the preferences from an XML resource
 	        addPreferencesFromResource(R.xml.preferences);
 
@@ -72,9 +63,13 @@ public class SettingsActivity extends Activity {
 	        ListPreference selectStandard = (ListPreference) root.findPreference("pref_key_select_standard");
 	        ListPreference selectDeint = (ListPreference) root.findPreference("pref_key_deinterlace_method");
 
+			ArrayList<DeviceEntry> validStreamingDeviceList = enumerateUsbDevices();
+			populateDeviceListPreference(validStreamingDeviceList, selectDevice);
 
-
-			enumerateUsbDevices();
+			// Set the summaries for preferences that assign them dynamically
+			selectDevice.setSummary(selectDevice.getEntry());
+			selectStandard.setSummary(selectStandard.getEntry());
+			selectDeint.setSummary(selectDeint.getEntry());
 
 	        /**
 	         * Below are listeners for each of our device settings that update the summary based on the
@@ -87,7 +82,9 @@ public class SettingsActivity extends Activity {
 			        ListPreference list = (ListPreference)preference;
 			        CharSequence[] entries = list.getEntries();
 			        int index = list.findIndexOfValue((String)newValue);
-			        preference.setSummary(entries[index]);
+					preference.setSummary(entries[index]);
+
+
 			        return true;
 		        }
 	        });
@@ -118,7 +115,8 @@ public class SettingsActivity extends Activity {
 
         }
 
-	    private void populateDeviceListPreference(ArrayList<DeviceEntry> validStreamingDeviceList) {
+	    private void populateDeviceListPreference(ArrayList<DeviceEntry> validStreamingDeviceList,
+												  ListPreference selectDevice) {
 
 			CharSequence[] entries;
 			CharSequence[] entryValues;
@@ -158,48 +156,8 @@ public class SettingsActivity extends Activity {
 	     *                    devices.json file.
 	     *
 	     */
-	    private boolean checkV4L2Device (DeviceInfo dev) {
 
-			String devLocation;
-			String driver;      // The driver name returned from V4L2
-
-			/*
-			Iterate through the /dev/videoX devices located on the system
-			to see if the driver for the current usb device has been loaded.
-			If so, add it to the list that populates the preference fragment
-			 */
-			for (int i = 0; i < 99; i++) {
-
-				devLocation = "/dev/video" + String.valueOf(i);
-				File test = new File(devLocation);
-				if (test.exists()) {
-
-					// TODO: 3/24/2016
-					// 		 right now the JNI function findDevice takes a location (file name) and returns
-					//       the the driver name if the device is valid.  It would be better
-					//		 for it to take bus info from the USB device and match it with
-					//       what we have here.  Its possible that we have multiple V4l2 device
-					//       that use the same driver, and the current implementation always
-					//       selects the first one found.
-					driver = NativeEasyCapture.findDevice(devLocation);
-
-					if (driver.compareTo(dev.getDriver()) == 0) {
-						DeviceEntry device = new DeviceEntry();
-						device.deviceName = driver;
-						device.deviceLocation = devLocation;
-						validStreamingDeviceList.add(device);
-
-						Log.i(TAG, "V4L2 device " + device.deviceName + " found at " +
-							device.deviceLocation);
-						return true;
-					}
-				}
-			}
-
-			return false;
-	    }
-
-		private void enumerateUsbDevices() {
+		private ArrayList<DeviceEntry> enumerateUsbDevices() {
 
 			ArrayList<DeviceEntry> validStreamingDeviceList = new ArrayList<>(5);
 
@@ -223,9 +181,12 @@ public class SettingsActivity extends Activity {
 
 					UsbDevice uDevice = deviceIterator.next();
 
+					DeviceInfo devInfo = JsonManager.getDevice(uDevice.getVendorId(), uDevice.getProductId(),
+							DeviceInfo.DeviceStandard.NTSC);
+
 					// If a supported device is listed in json list, request permission
 					// to access it
-					if (JsonManager.checkDevice(uDevice.getVendorId(), uDevice.getProductId())) {
+					if (devInfo != null) {
 
 						Log.i(TAG, "Supported usb device found: " + uDevice.toString());
 						Log.i(TAG, "Device ID: " + uDevice.getDeviceId());
@@ -234,19 +195,20 @@ public class SettingsActivity extends Activity {
 						Log.i(TAG, "Product ID: " + uDevice.getProductId());
 
 						DeviceEntry devEntry = new DeviceEntry();
-						devEntry.deviceDescription = uDevice.toString();
-						devEntry.deviceName = uDevice.getDeviceName();
+
+						// TODO: Rather than use the driver as a discriptor, I should add a field
+						// to the devices.json file with the devices lsusb name (ie UTV007 for usbtv)
+						devEntry.deviceDescription = devInfo.getDriver() + " @ " + uDevice.getDeviceName();
+						devEntry.deviceName = uDevice.getDeviceName() + ":" + devInfo.getDriver();
 
 						validStreamingDeviceList.add(devEntry);
 
 					}
 				}
 
-				populateDeviceListPreference(validStreamingDeviceList);
 			}
+
+			return validStreamingDeviceList;
 		}
-
-
-
     }
 }

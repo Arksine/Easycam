@@ -10,7 +10,6 @@
             android:dialogTitle="@string/pref_select_device"
             android:entries="@array/pref_select_device_entries"
             android:entryValues="@array/pref_select_device_values"
-            android:summary="@string/pref_select_device_summary"
             android:persistent="true"
             android:defaultValue="@string/pref_select_device_default" />
         <ListPreference
@@ -19,7 +18,6 @@
             android:dialogTitle="@string/pref_select_standard"
             android:entries="@array/pref_select_standard_entries"
             android:entryValues="@array/pref_select_standard_entries"
-            android:summary="@string/pref_select_standard_default"
             android:persistent="true"
             android:defaultValue="@string/pref_select_standard_default"/>
         <ListPreference
@@ -28,7 +26,6 @@
             android:dialogTitle="@string/pref_deinterlace_method"
             android:entries="@array/pref_deinterlace_method_entries"
             android:entryValues="@array/pref_deinterlace_method_values"
-            android:summary="@string/pref_deinterlace_method_summary"
             android:persistent="true"
             android:defaultValue="@string/pref_deinterlace_method_default"/>
         <CheckBoxPreference
