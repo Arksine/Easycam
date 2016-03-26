@@ -25,21 +25,9 @@ public:
 
 private:
 
-	/**
-	 * TODO: Add functionality to choose deinterlacing options(none, discard, bob even first,
-	 *       bob odd first, and perhaps blend.  Will need to choose options from settings in
-	 *       java.
-	 */
-
     DeviceSettings* devSettings;
 	int outputFrameHeight;  
-    
-    
 
-    // TODO: Need to set these variables in the constructor
-    // These are used for bob and discard deinterlacing.  They tell the renderscript kernels
-    // which element is the beginning of the first frame and which Element is the beginning of the
-    // second frame.
     int firstFrameElementIndex;
     int secondFrameElementIndex;
 	
@@ -59,60 +47,32 @@ private:
     // Function pointer to store which call we need to make, depending on YUV type
     void (FrameRenderer::* processFrame)(CaptureBuffer*, ANativeWindow*);
 
-	// Function pointer to the renderscript kernel function that needs to be called
-	// while processing
-	void (ScriptC_convert::* executeKernel)(sp<const Allocation>);
+    // TODO: 3/25/2016 - Implement BLEND function stubs
 
-    void processRS_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window); // No deinterlacing
-    void processRS_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processRS_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);   // TODO: STUB
+	// YUYV functions.  The label after the underscore represents the kind of deinterlacing
+    void processYUYV_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processYUYV_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processYUYV_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);  // STUB
+
+    // UYVY functions
+    void processUYVY_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processUYVY_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processUYVY_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
+    void processUYVY_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window); // STUB
 
     // RGB needs no color conversion, and with no deinterlacing it needs no calls to renderscript
     void processRGB_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processRGB_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processRGB_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processRGB_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);   // TODO: STUB
+    void processRGB_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);  // STUB
 
     // The below is for NV21 and YV12, which use YUV intrinsic
     void processIntrinsic_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processIntrinsic_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
     void processIntrinsic_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processIntrinsic_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);  // TODO: STUB
+    void processIntrinsic_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);  // STUB
 
-    // TODO: If the above function pointer works correctly there is no need for most of these
-    //       functions, as their contents only differ by the kernel called.  Commenting out for now
-    /*
-    // YUYV functions.  The label after the underscore represents the kind of deinterlacing
-    void processYUYV_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processYUYV_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    //void processYUYV_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);
-
-    // UYVY functions
-    void processUYVY_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processUYVY_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processUYVY_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    //void processUYVY_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);
-
-    // NV21 functions
-    void processNV21_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processNV21_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processNV21_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    //void processNV21_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);
-
-    // YV12 functions
-    void processYV12_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processYV12_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processYV12_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    //void processYV12_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window);
-
-
-    // RGB functions
-    void processRGB_NONE(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processRGB_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window);
-    void processRGB_BOB(CaptureBuffer* inBuffer, ANativeWindow* window);
-    //void processRGB_BLEND(CaptureBuffer* inBuffer, ANativeWindow* window); */
 };
 
 

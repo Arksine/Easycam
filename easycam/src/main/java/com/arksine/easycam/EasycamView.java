@@ -134,22 +134,6 @@ SurfaceHolder.Callback, Runnable {
             }
         }
 
-        /**
-         * TODO: 3/24/2016
-         * I need to get the selected usb device from shared preferences here.  Then I need to use
-         * check the usbpermission requested shared preference, and the UsbManager hasPermission().
-         * If I need to request permission I will do so here.
-         * If its granted, I need to detect the device file location (/dev/video0).  If that is found, the code
-         * below is executed.
-         *
-         * If requestusbpermission is not set, I simply need to find the device file and execute
-         * the code below.  I can also check the UsbManager hasPermission function on the usb device
-         * to
-         *
-         *
-         */
-
-
         boolean requestUsbPermission = sharedPrefs.getBoolean("pref_key_request_usb_permission", true);
         Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
 

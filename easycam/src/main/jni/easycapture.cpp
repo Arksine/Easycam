@@ -127,8 +127,8 @@ void initializeSettings(JNIEnv* jenv, jobject dInfo, DeviceSettings* devSets) {
 	// TODO: 3/22/2016
 	// Add Usb Vendor ID and Usb Product ID if we think we need them.
 	jclass devInfo = jenv->GetObjectClass(dInfo);
-	jmethodID getDriver = jenv->GetMethodID(devInfo, "getDriver", "()Ljava/lang/String");
-	jmethodID getLocation = jenv->GetMethodID(devInfo, "getLocation","()Ljava/lang/String");
+	jmethodID getDriver = jenv->GetMethodID(devInfo, "getDriver", "()Ljava/lang/String;");
+	jmethodID getLocation = jenv->GetMethodID(devInfo, "getLocation","()Ljava/lang/String;");
 	jmethodID getFrameWidth = jenv->GetMethodID(devInfo, "getFrameWidth","()I");
 	jmethodID getFrameHeight = jenv->GetMethodID(devInfo, "getFrameHeight","()I");
 	jmethodID getNumBuffers = jenv->GetMethodID(devInfo, "getNumBuffers","()I");

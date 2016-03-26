@@ -9,40 +9,48 @@
 The macros below reduce the amount of code necessary tremendously.  There are many
 potential render paths, and a large nested switch statement is required to choose the
 correct one.
-TODO: 3/22/2016 - Add more pertitent information as to how the each macro expands
+TODO: 3/22/2016 - Add more pertinent information as to how the each macro expands
+*/
+
+/** TODO: 3/25/2016
+Need to add more logging to see exactly how the variables are set.  Something is causing a SIGSEGV,
+I have a feeling its something wrong with the way the pixel allocation is being processed.  I have
+removed the function pointer to the kernel, perhaps that was the issue.  Will test and see
 */
 
 #define INITRS(rsType, kernel, yuvType)		                    \
 	initRenderscript(inputFrameHeight, interleaved, yuvType);   \
 	processFrame = &FrameRenderer::process ## rsType;		    \
-	executeKernel = &ScriptC_convert::forEach ## kernel;
+	LOGI("Render Method set as process %s", #rsType);           \
+	LOGI("Renderscript Kernel set as forEach %s", #kernel);
 
 #define COLORSWITCH(method)													                    \
 	switch(devSettings->pixelFormat){											                \
 		case V4L2_PIX_FMT_YUYV:													                \
-			INITRS(RS_ ## method, _convertFromYUYV, RS_YUV_NONE)		            \
-			processFrame = &FrameRenderer::processRS_ ## method;                                \
+			INITRS(YUYV_ ## method, _convertFromYUYV, RS_YUV_NONE)		                        \
+			LOGI("Pixel Format set as YUYV");                                                   \
 			break;																                \
 		case V4L2_PIX_FMT_UYVY:													                \
-			INITRS(RS_ ## method, _convertFromUYVY, RS_YUV_NONE)		            \
+			INITRS(UYVY_ ## method, _convertFromUYVY, RS_YUV_NONE)		                        \
+			LOGI("Pixel Format set as UYVY");                                                   \
 			break;																                \
 		case V4L2_PIX_FMT_NV21:													                \
-		    INITRS(Intrinsic_ ## method, _stripField, RS_YUV_NV21)                \
+		    INITRS(Intrinsic_ ## method, _stripField, RS_YUV_NV21)                              \
+		    LOGI("Pixel Format set as NV21");                                                   \
 			break;																                \
 		case V4L2_PIX_FMT_YVU420:												                \
-		    INITRS(Intrinsic_ ## method, _stripField, RS_YUV_YV12)                \
+		    INITRS(Intrinsic_ ## method, _stripField, RS_YUV_YV12)                              \
+		    LOGI("Pixel Format set as YV12");                                                   \
 			break;																                \
 		case V4L2_PIX_FMT_RGB565:												                \
-			if (strncmp(#method, "NONE", 4) == 0) {								                \
-				processFrame = &FrameRenderer::processRGB_SCAN;					                \
-			}																	                \
-			else {																                \
-				INITRS(RGB_ ## method, _stripField, RS_YUV_NONE)	                \
-			}																	                \
+			INITRS(RGB_ ## method, _stripField, RS_YUV_NONE)	                                \
+			LOGI("Pixel Format set as RGB565");                                                 \
 			break;																                \
 		default:																                \
-			INITRS(RS_ ## method, _convertFromYUYV, RS_YUV_NONE)		            \
-	}
+			INITRS(YUYV_ ## method, _convertFromYUYV, RS_YUV_NONE)		                        \
+			LOGI("Pixel Format set as YUYV");                                                   \
+	}                                                                                           \
+	LOGI("Deinterlace Method set as %s", #method);
 
 FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* dSets) {
 
@@ -342,13 +350,14 @@ void FrameRenderer::renderFrame(JNIEnv* jenv, jobject surface, CaptureBuffer* in
 	ANativeWindow_release(rWindow);
 }
 
-void FrameRenderer::processRS_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
+//----------------------------YUYV RENDER FUNCTIONS-----------------------------------
+
+void FrameRenderer::processYUYV_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	inputAlloc->copy1DFrom(inBuffer->start);
 
 	script->set_firstElement(firstFrameElementIndex);
-	(script->*executeKernel)(pixelAlloc);  //TODO:  NEED TO CHECK AND SEE IF THIS WORKS!!!
-	//script->forEach_convertFieldFromYUYV(pixelAlloc);
+	script->forEach_convertFromYUYV(pixelAlloc);
 
 	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
@@ -359,18 +368,17 @@ void FrameRenderer::processRS_SCAN(CaptureBuffer* inBuffer, ANativeWindow* windo
 
 }
 
-void FrameRenderer::processRS_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+void FrameRenderer::processYUYV_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
     // processRS_SCAN contains the necessary functionality to discard, so call that
-    processRS_SCAN(inBuffer, window);
+    processYUYV_SCAN(inBuffer, window);
 }
 
-void FrameRenderer::processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
+void FrameRenderer::processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 	inputAlloc->copy1DFrom(inBuffer->start);
 
 	script->set_firstElement(firstFrameElementIndex);
-	(script->*executeKernel)(pixelAlloc);  //TODO:  NEED TO CHECK AND SEE IF THIS WORKS!!!
-	//script->forEach_convertFieldFromYUYV(pixelAlloc);
+	script->forEach_convertFromYUYV(pixelAlloc);
 
 	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
@@ -381,14 +389,62 @@ void FrameRenderer::processRS_BOB(CaptureBuffer* inBuffer, ANativeWindow* window
 
     CLEAR(wBuffer);
 	script->set_firstElement(secondFrameElementIndex);
-	(script->*executeKernel)(pixelAlloc);
-	// script->forEach_convertFieldFromYUYV(pixelAlloc);
+	script->forEach_convertFromYUYV(pixelAlloc);
 
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
 		outputAlloc->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 }
+
+//----------------------------UYVY RENDER FUNCTIONS-----------------------------------
+
+void FrameRenderer::processUYVY_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+	inputAlloc->copy1DFrom(inBuffer->start);
+
+	script->set_firstElement(firstFrameElementIndex);
+	script->forEach_convertFromUYVY(pixelAlloc);
+
+	// Write output buffers to the window, we are attempting bob deinterlacing, even first
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		outputAlloc->copy1DTo(wBuffer.bits);
+		ANativeWindow_unlockAndPost(window);
+	}
+
+}
+
+void FrameRenderer::processUYVY_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+    // processRS_SCAN contains the necessary functionality to discard, so call that
+    processUYVY_SCAN(inBuffer, window);
+}
+
+void FrameRenderer::processUYVY_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+	inputAlloc->copy1DFrom(inBuffer->start);
+
+	script->set_firstElement(firstFrameElementIndex);
+	script->forEach_convertFromUYVY(pixelAlloc);
+
+	// Write output buffers to the window, we are attempting bob deinterlacing, even first
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		outputAlloc->copy1DTo(wBuffer.bits);
+		ANativeWindow_unlockAndPost(window);
+	}
+
+    CLEAR(wBuffer);
+	script->set_firstElement(secondFrameElementIndex);
+	script->forEach_convertFromUYVY(pixelAlloc);
+
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		outputAlloc->copy1DTo(wBuffer.bits);
+		ANativeWindow_unlockAndPost(window);
+	}
+}
+
+//----------------------------RGB RENDER FUNCTIONS-----------------------------------
 
 void FrameRenderer::processRGB_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
@@ -409,6 +465,8 @@ void FrameRenderer::processRGB_BOB(CaptureBuffer* inBuffer, ANativeWindow* windo
 void FrameRenderer::processRGB_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
 }
+
+//----------------------------INTRINSIC RENDER FUNCTIONS-----------------------------------
 
 void FrameRenderer::processIntrinsic_SCAN(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
@@ -431,7 +489,8 @@ void FrameRenderer::processIntrinsic_DISCARD(CaptureBuffer* inBuffer, ANativeWin
 
     // Strip the first frame (even or odd depending of the frame element index)
     script->set_firstElement(firstFrameElementIndex);
-    (script->*executeKernel)(pixelAlloc);
+    script->forEach_stripField(pixelAlloc);
+
 
     // Write output buffers to the window, we are attempting bob deinterlacing, even first
     ANativeWindow_Buffer wBuffer;
@@ -449,7 +508,7 @@ void FrameRenderer::processIntrinsic_BOB(CaptureBuffer* inBuffer, ANativeWindow*
 
     // Strip the first frame (even or odd depending of the frame element index)
     script->set_firstElement(firstFrameElementIndex);
-    (script->*executeKernel)(pixelAlloc);
+    script->forEach_stripField(pixelAlloc);
 
     // Write output buffers to the window, we are attempting bob deinterlacing, even first
     ANativeWindow_Buffer wBuffer;
@@ -460,8 +519,7 @@ void FrameRenderer::processIntrinsic_BOB(CaptureBuffer* inBuffer, ANativeWindow*
 
     CLEAR(wBuffer);
     script->set_firstElement(secondFrameElementIndex);
-    (script->*executeKernel)(pixelAlloc);
-    // script->forEach_convertFieldFromYUYV(pixelAlloc);
+    script->forEach_stripField(pixelAlloc);
 
     if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
         outputAlloc->copy1DTo(wBuffer.bits);
