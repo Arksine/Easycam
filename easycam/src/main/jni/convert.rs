@@ -6,7 +6,7 @@
 rs_allocation inAllocation;
 rs_allocation outAllocation;
 
-int32_t firstElement;   //  The first Element to be processed. For interleaved frames the first element 0 for
+int32_t offset;         //  Offset to first Element to be processed. For interleaved frames the first element 0 for
 						//  Odd frames, (frameWidth / 2) for even frames in YUY2 or other 16-bit
 						//  formats, and frameWidth for RGBA and other 32-bit formats.  For sequential frames
 						//  0 is the first element of the first half, and ((framewidth / 2)* frameheight) / 2,
@@ -22,7 +22,7 @@ void __attribute__((kernel)) convertFromYUYV(int32_t xIn, uint32_t x)
     uchar yValue;
 
 	// The first element is an offset we add to the index received from the pixel alloc
-    int32_t inputIndex = xIn + firstElement;
+    int32_t inputIndex = xIn + offset;
 
     inElement = rsGetElementAt_uchar4(inAllocation, inputIndex);
 
@@ -51,7 +51,7 @@ void __attribute__((kernel)) convertFromUYVY(int32_t xIn, uint32_t x)
     uchar4 outElement;
     uchar yValue;
 
-    int32_t inputIndex = xIn + firstElement;
+    int32_t inputIndex = xIn + offset;
 
     inElement = rsGetElementAt_uchar4(inAllocation, inputIndex);
 
@@ -77,7 +77,7 @@ void __attribute__((kernel)) stripField(int32_t xIn, uint32_t x ) {
 
 	uchar4 element;
 
-    int32_t inputIndex = xIn + firstElement;
+    int32_t inputIndex = xIn + offset;
 
     element = rsGetElementAt_uchar4(inAllocation, inputIndex);
 

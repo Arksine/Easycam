@@ -1,7 +1,12 @@
 package com.arksine.easycam;
 
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.IntentFilter;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
@@ -20,12 +25,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
 
 public class easycam extends Activity {
 
 	private static String TAG = "easycam";
 
-    EasycamView camView;
+    EasycamView camView = null;
     SurfaceHolder mHolder;
     FrameLayout currentLayout;
 
@@ -53,10 +59,49 @@ public class easycam extends Activity {
         }
     };
 
+    private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
+    private PendingIntent mPermissionIntent;
+
+    /**
+     * TODO: 3/26/2016
+     * the broadcastreciever is causing a deadlock.  Need to move it again.
+     * Its order of execution is really screwing up things, as it doesn't execute until the user
+     * returns input.
+     */
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (ACTION_USB_PERMISSION.equals(action)) {
+                synchronized (this) {
+                    UsbDevice uDevice = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+
+                        if(uDevice != null) {
+                            initView();
+                        }
+                        else {
+                            Log.d(TAG, "USB Device not valid");
+                        }
+                    }
+                    else {
+                        Log.d(TAG, "permission denied for device " + uDevice);
+                    }
+                }
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 	    super.onCreate(savedInstanceState);
 	    setContentView(R.layout.activity_easycam);
+
+        // Set up the intent necessary to get request access for a USB device
+        mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
+        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+        registerReceiver(mUsbReceiver, filter);
 
 	    SharedPreferences sharedPrefs =
 			    PreferenceManager.getDefaultSharedPreferences(this);
@@ -89,8 +134,7 @@ public class easycam extends Activity {
 		    if (!JsonManager.initialize())
 			    return;
 	    }
-
-
+        
 		// Launch a dialog on first run to select the TV standard.  Some devices
 	    // have issues with the incorrect standard and do not return an error
 	    // when doing so.
@@ -99,16 +143,59 @@ public class easycam extends Activity {
             startActivity(intent);
         }
 
-
         currentLayout = (FrameLayout) findViewById(R.id.mainLayout);
-        camView = (EasycamView) findViewById(R.id.camview);
-        mHolder = camView.getHolder();
-
-
 
         leanBackOn = sharedPrefs.getBoolean("pref_key_layout_leanback", true);
         isFullScreen = sharedPrefs.getBoolean("pref_key_layout_fullscreen", true);
         useToasts = sharedPrefs.getBoolean("pref_key_layout_toasts", true);
+
+        boolean requestUsbPermission = sharedPrefs.getBoolean("pref_key_request_usb_permission", true);
+        Log.d(TAG, "Request Usb permission is set to " + String.valueOf(requestUsbPermission));
+
+        String prefSelectDevice = sharedPrefs.getString("pref_key_select_device", "NO_DEVICE");
+        if (prefSelectDevice.equals("NO_DEVICE")){
+            Log.e(TAG, "No device selected in preferences");
+
+            CharSequence text = "No device selected in preferences";
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(this, text, duration);
+            toast.show();
+        }
+        else {
+            String[] devDesc = prefSelectDevice.split(":");
+
+            UsbManager mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+            HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
+            UsbDevice uDevice = usbDeviceList.get(devDesc[0]);
+
+            if (uDevice == null) {
+                Log.e(TAG, "No usb device matching selection found");
+
+                CharSequence text = "No usb device matching selection found";
+                int duration = Toast.LENGTH_SHORT;
+                Toast toast = Toast.makeText(this, text, duration);
+                toast.show();
+            }
+            else {
+                // If the request usb permission is set in user settings and the device does not have
+                // permission then we will request permission
+                if (requestUsbPermission && !(mUsbManager.hasPermission(uDevice))) {
+                    mUsbManager.requestPermission(uDevice, mPermissionIntent);
+                } else {
+                    initView();
+                }
+            }
+        }
+
+    }
+
+    private void initView() {
+
+        camView = new EasycamView(this);
+        mHolder = camView.getHolder();
+
+        currentLayout.addView(camView);
+
 
         camView.setOnSystemUiVisibilityChangeListener
                 (new View.OnSystemUiVisibilityChangeListener() {
@@ -123,9 +210,6 @@ public class easycam extends Activity {
                         }
                     }
                 });
-
-
-        // change layout to fullscreen or 4:3 after the view has been created
 
     }
 
@@ -181,6 +265,11 @@ public class easycam extends Activity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+
+        if (camView == null) {
+            return;
+        }
+
         if(leanBackOn) {
             if (hasFocus) {
                 camView.setSystemUiVisibility(
@@ -200,8 +289,19 @@ public class easycam extends Activity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        unregisterReceiver(mUsbReceiver);
+    }
+
     private void setViewLayout()
     {
+        if (camView == null) {
+            return;
+        }
+
         FrameLayout.LayoutParams params;
 
         if (isFullScreen)  {

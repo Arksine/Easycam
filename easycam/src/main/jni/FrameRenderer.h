@@ -25,24 +25,26 @@ public:
 
 private:
 
-    DeviceSettings* devSettings;
-	int outputFrameHeight;  
-
+	// The the first element of a frame in an allocation.  If allocation contains two interleaved
+	// frames, there are two indices
     int firstFrameElementIndex;
     int secondFrameElementIndex;
 	
 	int32_t frameWindowFormat;  // The pixel format used by ANativeWindow
+	int outputWindowHeight;		// Geometry for ANativeWindow
+	int outputWindowWidth;
 
 	sp<RS> rs;
-    sp<Allocation> inputAlloc;
-    sp<Allocation> outputAlloc;
-    sp<Allocation> pixelAlloc;		// Allocation that represents each pixel in the input buffer
-	sp<Allocation> intrinsAlloc;	// Allocation that the YUV Intrinsic writes to.
+    sp<Allocation> inputAlloc;			// Allocation containing the frame input
+    sp<Allocation> scriptOutputAlloc;	// Allocation produced by a renderscript kernel
+    sp<Allocation> pixelAlloc;			// Allocation that represents each pixel in the input buffer
+	sp<Allocation> intrinsOutAlloc;		// Allocation produced by a YUV Intrinsic
 
     ScriptC_convert* script;
 	sp<ScriptIntrinsicYuvToRGB> intrinsic;
 
-	void initRenderscript(int inputFrameHeight, bool interleaved, RSYuvFormat yuvFmt);
+	void initRenderscript(int inputFrameWidth,int inputFrameHeight, bool interleaved, int pixelsPerElement,  RSYuvFormat yuvFmt);
+	void setupPixelAlloc(int pixelBufWidth, int pixelBufHeight, int pixelsPerElement, bool interleaved);
 
     // Function pointer to store which call we need to make, depending on YUV type
     void (FrameRenderer::* processFrame)(CaptureBuffer*, ANativeWindow*);
