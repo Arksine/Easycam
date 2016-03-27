@@ -3,6 +3,7 @@
 package com.arksine.easycam;
 
 
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Rect;
@@ -12,6 +13,8 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.Toast;
+
+import java.util.HashMap;
 
 /**
  *  Class: EasycamView
@@ -23,7 +26,7 @@ SurfaceHolder.Callback, Runnable {
 
 	private static String TAG = "EasycamView";
 	
-	private EasyCapture capDevice;
+	private EasyCapture capDevice = null;
 	
 	private Thread mThread = null;
 
@@ -111,9 +114,22 @@ SurfaceHolder.Callback, Runnable {
         }
         Log.i(TAG, "View resumed");
 
+        // Attempt to start streaming
+        if (!capDevice.streamOn()) {
+            CharSequence text = "Unable to stream video from device";
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(appContext, text, duration);
+            toast.show();
+
+            Log.e(TAG, "Device error: unable to start streaming video");
+            mRunning = false;
+            return;
+        }
+
         mRunning = true;
         mThread = new Thread(this);
         mThread.start();
+
     }
 
     public void pause()  {
@@ -131,21 +147,22 @@ SurfaceHolder.Callback, Runnable {
                 }
             }
         }
-        capDevice.stop();
+
+        if (capDevice != null)
+            capDevice.stop();
+
         Log.i(TAG, "View paused");
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         Log.d(TAG, "Surface created");
-
         resume();
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.d(TAG, "Surface destroyed");
-
         pause();
     }
 
@@ -157,4 +174,5 @@ SurfaceHolder.Callback, Runnable {
         setViewingWindow (winWidth, winHeight);
 
     }
+
 }

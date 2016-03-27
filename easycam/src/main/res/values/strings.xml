@@ -4,48 +4,86 @@
     <string name="app_name">Easycam</string>
     <string name="action_settings">Settings</string>
     <string name="toggle_fullscreen">Toggle Fullscreen</string>
+
     <string name="title_activity_settings">Settings</string>
     <string name="pref_device_settings_title">Device Settings</string>
-    <string name="pref_manual_set_dev_loc">Manually select Device Location</string>
-    <string name="pref_manual_set_dev_loc_summ">Enable if device location is not auto detected</string>
-    <string name="pref_select_dev_loc">Select Device File</string>
-    <string name="pref_select_dev_loc_summ">Typically /dev/videoX</string>
-    <string name="pref_select_dev_loc_default">/dev/video0</string>
-    <string name="pref_manual_set_type">Manually select Device Type</string>
-    <string name="pref_manual_set_type_summ">Enable if Easycap type is not auto detected</string>
-    <string name="pref_easycap_type">Select Easycap Device</string>
-
-    <string-array name="pref_select_easycap_entries">
-        <item>UTV007</item>
-        <item>Empia</item>
-        <item>STK1160</item>
-        <item>Somagic</item>
+    <string name="pref_select_device">Select Device</string>
+    <string-array name="pref_select_device_entries">
+        <item>No Devices Found</item>
     </string-array>
-    <string-array name="pref_select_easycap_values">
-        <item>0</item>
-        <item>1</item>
-        <item>2</item>
-        <item>3</item>
+    <string-array name="pref_select_device_values">
+        <item>NO_DEVICE</item>
     </string-array>
+    <string name="pref_select_device_summary">No Device Selected</string>
+    <string name="pref_select_device_default">NO_DEVICE</string>
 
-    <string name="pref_select_easycap_default">0</string>
+    <string name="pref_add_device">Add Device</string>
+    <string name="pref_framewidth">Horizontal Resolution</string>
+    <string name="pref_frameheight">Vertical Resolution</string>
+    <string name="pref_numbuffers">V4L2 Frame Buffers</string>
+
+    <string name="pref_pixelformat">Pixel Format</string>
+    <string-array name="pref_pixelformat_entries">
+        <item>YUYV</item>
+        <item>UYVY</item>
+        <item>NV21</item>
+        <item>YV12</item>
+        <item>RGB565</item>
+        <item>RGBA8888</item>
+    </string-array>
+    <string name="pref_pixelformat_default">YUYV</string>
+
+    <string name="pref_scantype">Scan Type</string>
+    <string-array name="pref_scantype_entries">
+        <item>Progressive Scan</item>
+        <item>Interlaced</item>
+    </string-array>
+    <string-array name="pref_scantype_values">
+        <item>PROGRESSIVE</item>
+        <item>INTERLACED</item>
+
+    </string-array>
+    <string name="pref_scantype_default">FIELD_EVEN_FIRST</string>
+    <string name="pref_input">Select Input</string>
+
+
     <string name="pref_select_standard">TV Standard</string>
-    <string name="pref_select_standard_default">0</string>
-
+    <string name="pref_select_standard_default">NTSC</string>
     <string-array name="pref_select_standard_entries">
         <item>NTSC</item>
         <item>PAL</item>
     </string-array>
-    <string-array name="pref_select_standard_values">
-        <item>0</item>
-        <item>1</item>
+
+    <string name="pref_deinterlace_method">Deinterlace Method</string>
+    <string-array name="pref_deinterlace_method_entries">
+        <item>None</item>
+        <item>Discard</item>
+        <item>Bob</item>
+        <!--<item>Blend</item>  TODO: 3/22/2016 - Renable Blend Deinterlacing after implementation -->
     </string-array>
+    <string-array name="pref_deinterlace_method_values">
+        <item>NONE</item>
+        <item>DISCARD</item>
+        <item>BOB</item>
+        <!--<item>BLEND</item>  -->
+    </string-array>
+    <string name="pref_deinterlace_method_default">NONE</string>
+    <string name="pref_deinterlace_method_summary">None</string>
+
+    <string name="pref_manual_set_dev_loc">Manually Select Device Location</string>
+    <string name="pref_manual_set_dev_loc_summ">Enable if device location is not auto detected</string>
+
+    <string name="pref_select_dev_loc">Select Device File</string>
+    <string name="pref_select_dev_loc_default">/dev/video</string>
+
+    <string name="pref_request_usb_permission">Request USB Permssion</string>
+    <string name="pref_request_usb_permission_summ">Select if SELinux is enforcing</string>
 
     <string name="pref_layout_settings_title">Layout Settings</string>
     <string name="pref_layout_fullscreen">Start in fullscreen mode</string>
-    <string name="pref_layout_fullscreen_summ">Disable if you prefer a 4:3 aspect ratio</string>
-    <string name="pref_layout_leanback">Immersive mode</string>
-    <string name="pref_layout_leanback_summ">Enable to hide action/navigation bars</string>
+    <string name="pref_layout_fullscreen_summ">Stretch image to fill the entire screen</string>
+    <string name="pref_layout_immersive">Immersive mode</string>
+    <string name="pref_layout_immersive_summ">Enable to hide action/navigation bars</string>
     <string name="pref_layout_toasts">Enable Toasts</string>
     <string name="pref_layout_toasts_summ">Disable to remove info popups</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>

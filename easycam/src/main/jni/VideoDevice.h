@@ -8,15 +8,7 @@
 #ifndef VIDEODEVICE_H_
 #define VIDEODEVICE_H_
 
-#include <jni.h>
-#include <cstdio>
 #include "util.h"
-
-using namespace std;
-
-
-
-typedef unsigned char uint8;
 
 /* Class: Video Device
  * Encapsulates a V4l2 device, exposing all functionality
@@ -24,7 +16,7 @@ typedef unsigned char uint8;
  */
 class VideoDevice {
 public:
-	VideoDevice(DeviceSettings devSets);
+	VideoDevice(DeviceSettings* dSets);
 	virtual ~VideoDevice();
 
 	/* The below functions control a capture device.  A note about how they work:
@@ -34,40 +26,38 @@ public:
 	 * If you stop a device it must be opened, initialized, and the stream turned
 	 * on before you can run process capture again.
 	 */
-	int open_device();   // attempt to open device_name and get file descriptor
-	int init_device();   // initialize buffers
-	int start_capture(); // enqueue buffers and turn stream on
-	int stop_capture();  // turn stream off
-	CaptureBuffer * process_capture();   // dequeue a frame and bring it to user space
-	void stop_device();  // shut down device
+	int openDevice();   // attempt to open device_name and get file descriptor
+	int initDevice();   // initialize buffers
+	int startCapture(); // enqueue buffers and turn stream on
+	int stopCapture();  // turn stream off
+	CaptureBuffer * processCapture();   // dequeue a frame and bring it to user space
+	void stopDevice();  // shut down device
 
 	// static function to detect a device
-	static DeviceType detect_device(const char* dev_name);
+	static char* detectDevice(const char* devLocation);
 
-	bool video_device_attached() {
-		if (file_descriptor == -1)
+	bool videoDeviceAttached() {
+		if (fileDescriptor == -1)
 			return false;
 		else
 			return true;
 	}
 
 private:
-	unsigned int buffer_count;  // actual number of buffers allocated
-
-	CaptureBuffer* frame_buffers;
-
-	int file_descriptor;
-	DeviceSettings device_sets;
+	unsigned int bufferCount;  // actual number of buffers allocated
+	CaptureBuffer* frameBuffers;
+	int fileDescriptor;
+	DeviceSettings* devSettings;
 
 	int curBufferIndex;  // the index for the last buffer read into memory
 
-	int uninit_device();
-	int close_device();
-	int init_mmap();
-	int read_frame();
+	int uninitDevice();
+	int closeDevice();
+	int initMemmap();
+	int readFrame();
 
 	//v4l2 helper functions
-	static int v4l2_open(const char* dev_name);
+	static int v4l2_open(const char* devLocation);
 	static int v4l2_close(int fd);
 
 };

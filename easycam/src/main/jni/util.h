@@ -3,7 +3,9 @@
 
 #include <jni.h>
 #include <cstdio>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <linux/videodev2.h>
 #include <android/log.h>
 
 #define LOG_TAG "NativeEasyCaptureJNI"
@@ -15,25 +17,31 @@
 #define ERROR_LOCAL -1
 #define SUCCESS_LOCAL 0
 
+using namespace std;
+
 // Simple buffer that stores a reference to an array and the length of the array
 typedef struct {
     void* start;
     size_t length;
 } CaptureBuffer;
 
-// Enumerations for tracking device info
-enum DeviceType {UTV007, EMPIA, STK1160, SOMAGIC, CUSTOM, NO_DEVICE};
-enum PixelFormat {YUYV, UYVY, RGB565, RGBA8888};
-enum VideoStandard {NTSC, PAL};
+enum Deinterlace {NONE, DISCARD, BOB, BLEND};
 
 typedef struct {
-	DeviceType device_type;     // Type of easycap device
-	VideoStandard standard_id;  // Region standard (NTSC/PAL)
-	int frame_width;
-	int frame_height;
-	char* device_name;  		// location of the device file (/dev/videoX)
-	int num_buffers;			// number of buffers to allocate
-	PixelFormat color_format;   // the pixel format of the device
+	char* driver;
+	char* location;  		// location of the device file (/dev/videoX)
+	int frameWidth;
+	int frameHeight;
+	int numBuffers;			// number of buffers to allocate
+
+	// The input selection for devices that have multiple inputs.  Set to -1 for devices that have only one input.
+	int input;
+	Deinterlace deintMethod;
+
+	// V4L2 specific definitions
+	v4l2_std_id videoStandard;
+	__u32 pixelFormat;
+	v4l2_field field;
 } DeviceSettings;
 
 int errnoexit(const char *s);

@@ -48,3 +48,6 @@ proguard/
 *.exe
 *.out
 *.app
+
+easycam/src/main/obj/local/*
+easycam/src/main/obj/local/armeabi-v7a/objs/easycapture/ScriptC_convert.h

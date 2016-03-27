@@ -1,0 +1,77 @@
+[
+  {
+    "description": "Empia EM2860 USB Capture Device",
+    "driver": "em28xx",
+    "usb_vendor_id": "eb1a",
+    "usb_product_id": "2861",
+    "framewidth": 640,
+    "frameheight":{
+      "ntsc":480,
+      "pal":576
+    },
+    "numbuffers":2,
+    "pixelformat":"YUYV",
+    "fieldtype":"INTERLACED",
+    "input":-1
+  },
+  {
+    "description": "UTV007 USB Capture Device",
+    "driver": "usbtv",
+    "usb_vendor_id": "1b71",
+    "usb_product_id": "3002",
+    "framewidth": 720,
+    "frameheight": {
+      "ntsc": 480,
+      "pal": 576
+    },
+    "numbuffers": 2,
+    "pixelformat": "YUYV",
+    "fieldtype":"INTERLACED",
+    "input": -1
+  },
+  {
+    "description": "Syntek STK1160 USB Capture Device",
+    "driver": "stk1160",
+    "usb_vendor_id": "05e1",
+    "usb_product_id": "0408",
+    "framewidth": 720,
+    "frameheight": {
+      "ntsc": 480,
+      "pal": 576
+    },
+    "numbuffers": 2,
+    "pixelformat": "UYVY",
+    "fieldtype":"INTERLACED",
+    "input": -1
+  },
+  {
+    "description": "Somagic SMI2021 USB Capture Device",
+    "driver": "smi2021",
+    "usb_vendor_id": "1c88",
+    "usb_product_id": "003c",
+    "framewidth": 720,
+    "frameheight": {
+      "ntsc": 484,
+      "pal": 576
+    },
+    "numbuffers": 4,
+    "pixelformat": "UYVY",
+    "fieldtype":"INTERLACED",
+    "input": -1
+  },
+  {
+    "description": "Somagic SMI2021 USB Capture Device",
+    "driver": "smi2021",
+    "usb_vendor_id": "1c88",
+    "usb_product_id": "003f",
+    "framewidth": 720,
+    "frameheight": {
+      "ntsc": 484,
+      "pal": 576
+    },
+    "numbuffers": 4,
+    "pixelformat": "UYVY",
+    "fieldtype":"INTERLACED",
+    "input": -1
+  }
+]

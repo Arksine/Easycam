@@ -4,37 +4,45 @@
     <PreferenceCategory
         android:title="@string/pref_device_settings_title"
         android:key="pref_key_device_settings">
+        <ListPreference
+            android:key="pref_key_select_device"
+            android:title="@string/pref_select_device"
+            android:dialogTitle="@string/pref_select_device"
+            android:entries="@array/pref_select_device_entries"
+            android:entryValues="@array/pref_select_device_values"
+            android:persistent="true"
+            android:defaultValue="@string/pref_select_device_default" />
+        <ListPreference
+            android:key="pref_key_select_standard"
+            android:title="@string/pref_select_standard"
+            android:dialogTitle="@string/pref_select_standard"
+            android:entries="@array/pref_select_standard_entries"
+            android:entryValues="@array/pref_select_standard_entries"
+            android:persistent="true"
+            android:defaultValue="@string/pref_select_standard_default"/>
+        <ListPreference
+            android:key="pref_key_deinterlace_method"
+            android:title="@string/pref_deinterlace_method"
+            android:dialogTitle="@string/pref_deinterlace_method"
+            android:entries="@array/pref_deinterlace_method_entries"
+            android:entryValues="@array/pref_deinterlace_method_values"
+            android:persistent="true"
+            android:defaultValue="@string/pref_deinterlace_method_default"/>
         <CheckBoxPreference
             android:key="pref_key_manual_set_dev_loc"
             android:title="@string/pref_manual_set_dev_loc"
-            android:summary="@string/pref_manual_set_dev_loc_summ"
             android:defaultValue="false" />
         <EditTextPreference
             android:dependency="pref_key_manual_set_dev_loc"
             android:key="pref_select_dev_loc"
             android:title="@string/pref_select_dev_loc"
-            android:summary="@string/pref_select_dev_loc_summ"
             android:defaultValue="@string/pref_select_dev_loc_default"/>
         <CheckBoxPreference
-            android:key="pref_key_manual_set_type"
-            android:title="@string/pref_manual_set_type"
-            android:summary="@string/pref_manual_set_type_summ"
-            android:defaultValue="false" />
-        <ListPreference
-            android:dependency="pref_key_manual_set_type"
-            android:key="pref_select_easycap_type"
-            android:title="@string/pref_easycap_type"
-            android:dialogTitle="@string/pref_easycap_type"
-            android:entries="@array/pref_select_easycap_entries"
-            android:entryValues="@array/pref_select_easycap_values"
-            android:defaultValue="@string/pref_select_easycap_default" />
-        <ListPreference
-            android:key="pref_select_standard"
-            android:title="@string/pref_select_standard"
-            android:dialogTitle="@string/pref_select_standard"
-            android:entries="@array/pref_select_standard_entries"
-            android:entryValues="@array/pref_select_standard_values"
-            android:defaultValue="@string/pref_select_standard_default" />
+            android:key="pref_key_request_usb_permission"
+            android:title="@string/pref_request_usb_permission"
+            android:summary="@string/pref_request_usb_permission_summ"
+            android:persistent="true"
+            android:defaultValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -44,16 +52,19 @@
             android:key="pref_key_layout_fullscreen"
             android:title="@string/pref_layout_fullscreen"
             android:summary="@string/pref_layout_fullscreen_summ"
+            android:persistent="true"
             android:defaultValue="true" />
         <CheckBoxPreference
-            android:key="pref_key_layout_leanback"
-            android:title="@string/pref_layout_leanback"
-            android:summary="@string/pref_layout_leanback_summ"
+            android:key="pref_key_layout_immersive"
+            android:title="@string/pref_layout_immersive"
+            android:summary="@string/pref_layout_immersive_summ"
+            android:persistent="true"
             android:defaultValue="true" />
         <CheckBoxPreference
             android:key="pref_key_layout_toasts"
             android:title="@string/pref_layout_toasts"
             android:summary="@string/pref_layout_toasts_summ"
+            android:persistent="true"
             android:defaultValue="true" />
     </PreferenceCategory>
 

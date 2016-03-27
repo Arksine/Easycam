@@ -7,4 +7,5 @@ public interface EasyCapture {
     public void stop();
     public boolean isAttached();
     public boolean isDeviceConnected();
+    public boolean streamOn();
 }
