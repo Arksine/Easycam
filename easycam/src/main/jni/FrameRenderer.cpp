@@ -12,12 +12,6 @@ correct one.
 TODO: 3/22/2016 - Add more pertinent information as to how the each macro expands
 */
 
-/** TODO: 3/25/2016
-Need to add more logging to see exactly how the variables are set.  Something is causing a SIGSEGV,
-I have a feeling its something wrong with the way the pixel allocation is being processed.  I have
-removed the function pointer to the kernel, perhaps that was the issue.  Will test and see
-*/
-
 #define INITRS(rsType, ppe, yuvType)													\
 	initRenderscript(inputFrameWidth, inputFrameHeight, interleaved, ppe, yuvType);		\
 	processFrame = &FrameRenderer::process ## rsType;									\
@@ -108,16 +102,17 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* devSe
 			COLORSWITCH(SCAN)
 			break;
 		case V4L2_FIELD_INTERLACED:
-			interleaved = true;
 			inputFrameHeight = devSettings->frameHeight;
 			switch (devSettings->deintMethod) {
 				case NONE:
+					interleaved = false;
 					outputWindowHeight = devSettings->frameHeight;
 					firstFrameElementIndex = 0;
 					secondFrameElementIndex = 0;
 					COLORSWITCH(SCAN)
 					break;
 				case DISCARD:
+					interleaved = true;
 					outputWindowHeight = devSettings->frameHeight / 2;
 					// NTSC - Bottom field first
 					if (devSettings->videoStandard == V4L2_STD_NTSC) {	
@@ -132,6 +127,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* devSe
 					COLORSWITCH(DISCARD)
 					break;
 				case BOB:
+					interleaved = true;
 					outputWindowHeight = devSettings->frameHeight / 2;
 					// NTSC - Bottom field first
 					if (devSettings->videoStandard == V4L2_STD_NTSC) {	
@@ -146,6 +142,7 @@ FrameRenderer::FrameRenderer(JNIEnv* jenv, jstring rsPath, DeviceSettings* devSe
 					COLORSWITCH(BOB)
 					break;
 				//case BLEND:
+					//interleaved = false;
 					//outputWindowHeight = devSettings->frameHeight;
 					//COLORSWITCH(BLEND, Blend?)
 					//break;
@@ -373,18 +370,12 @@ void FrameRenderer::processYUYV_SCAN(CaptureBuffer* inBuffer, ANativeWindow* win
 	script->set_offset(firstFrameElementIndex);
 	script->forEach_convertFromYUYV(pixelAlloc);
 
-	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
 		scriptOutputAlloc->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 
-}
-
-void FrameRenderer::processYUYV_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
-    // processRS_SCAN contains the necessary functionality to discard, so call that
-    processYUYV_SCAN(inBuffer, window);
 }
 
 void FrameRenderer::processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
@@ -394,7 +385,6 @@ void FrameRenderer::processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* wind
 	script->set_offset(firstFrameElementIndex);
 	script->forEach_convertFromYUYV(pixelAlloc);
 
-	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
 		scriptOutputAlloc->copy1DTo(wBuffer.bits);
@@ -409,6 +399,11 @@ void FrameRenderer::processYUYV_BOB(CaptureBuffer* inBuffer, ANativeWindow* wind
 		scriptOutputAlloc->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
+}
+
+void FrameRenderer::processYUYV_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+    // processYUYV_SCAN contains the necessary functionality to discard, so call that
+    processYUYV_SCAN(inBuffer, window);
 }
 
 //----------------------------UYVY RENDER FUNCTIONS-----------------------------------
@@ -420,18 +415,12 @@ void FrameRenderer::processUYVY_SCAN(CaptureBuffer* inBuffer, ANativeWindow* win
 	script->set_offset(firstFrameElementIndex);
 	script->forEach_convertFromUYVY(pixelAlloc);
 
-	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
 		scriptOutputAlloc->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
 
-}
-
-void FrameRenderer::processUYVY_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
-    // processRS_SCAN contains the necessary functionality to discard, so call that
-    processUYVY_SCAN(inBuffer, window);
 }
 
 void FrameRenderer::processUYVY_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
@@ -441,7 +430,6 @@ void FrameRenderer::processUYVY_BOB(CaptureBuffer* inBuffer, ANativeWindow* wind
 	script->set_offset(firstFrameElementIndex);
 	script->forEach_convertFromUYVY(pixelAlloc);
 
-	// Write output buffers to the window, we are attempting bob deinterlacing, even first
 	ANativeWindow_Buffer wBuffer;
 	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
 		scriptOutputAlloc->copy1DTo(wBuffer.bits);
@@ -456,6 +444,11 @@ void FrameRenderer::processUYVY_BOB(CaptureBuffer* inBuffer, ANativeWindow* wind
 		scriptOutputAlloc->copy1DTo(wBuffer.bits);
 		ANativeWindow_unlockAndPost(window);
 	}
+}
+
+void FrameRenderer::processUYVY_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+    // processUYVY_SCAN contains the necessary functionality to discard, so call that
+    processUYVY_SCAN(inBuffer, window);
 }
 
 //----------------------------RGB RENDER FUNCTIONS-----------------------------------
@@ -470,13 +463,41 @@ void FrameRenderer::processRGB_SCAN(CaptureBuffer* inBuffer, ANativeWindow* wind
 	}
 }
 
-// TODO:  3/21/2016 - Implement processRGB_BOB and processRGB_DISCARD
-
 void FrameRenderer::processRGB_BOB(CaptureBuffer* inBuffer, ANativeWindow* window) {
 
+	inputAlloc->copy1DFrom(inBuffer->start);
+
+	script->set_offset(firstFrameElementIndex);
+	script->forEach_stripField(pixelAlloc);
+
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		scriptOutputAlloc->copy1DTo(wBuffer.bits);
+		ANativeWindow_unlockAndPost(window);
+	}
+
+    CLEAR(wBuffer);
+	script->set_offset(secondFrameElementIndex);
+	script->forEach_stripField(pixelAlloc);
+
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		scriptOutputAlloc->copy1DTo(wBuffer.bits);
+		ANativeWindow_unlockAndPost(window);
+	}
 }
 
 void FrameRenderer::processRGB_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+	inputAlloc->copy1DFrom(inBuffer->start);
+
+	script->set_offset(firstFrameElementIndex);
+	script->forEach_stripField(pixelAlloc);
+
+	ANativeWindow_Buffer wBuffer;
+	if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+		scriptOutputAlloc->copy1DTo(wBuffer.bits);
+		ANativeWindow_unlockAndPost(window);
+	}
 
 }
 
@@ -487,29 +508,9 @@ void FrameRenderer::processIntrinsic_SCAN(CaptureBuffer* inBuffer, ANativeWindow
     inputAlloc->copy1DFrom(inBuffer->start);
     intrinsic->forEach(intrinsOutAlloc);
 
-    // Write output buffers to the window, we are attempting bob deinterlacing, even first
     ANativeWindow_Buffer wBuffer;
     if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
         intrinsOutAlloc->copy1DTo(wBuffer.bits);
-        ANativeWindow_unlockAndPost(window);
-    }
-
-}
-
-void FrameRenderer::processIntrinsic_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
-
-    inputAlloc->copy1DFrom(inBuffer->start);
-    intrinsic->forEach(intrinsOutAlloc);
-
-    // Strip the first frame (even or odd depending of the frame element index)
-    script->set_offset(firstFrameElementIndex);
-    script->forEach_stripField(pixelAlloc);
-
-
-    // Write output buffers to the window, we are attempting bob deinterlacing, even first
-    ANativeWindow_Buffer wBuffer;
-    if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
-        scriptOutputAlloc->copy1DTo(wBuffer.bits);
         ANativeWindow_unlockAndPost(window);
     }
 
@@ -524,7 +525,6 @@ void FrameRenderer::processIntrinsic_BOB(CaptureBuffer* inBuffer, ANativeWindow*
     script->set_offset(firstFrameElementIndex);
     script->forEach_stripField(pixelAlloc);
 
-    // Write output buffers to the window, we are attempting bob deinterlacing, even first
     ANativeWindow_Buffer wBuffer;
     if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
         scriptOutputAlloc->copy1DTo(wBuffer.bits);
@@ -535,6 +535,23 @@ void FrameRenderer::processIntrinsic_BOB(CaptureBuffer* inBuffer, ANativeWindow*
     script->set_offset(secondFrameElementIndex);
     script->forEach_stripField(pixelAlloc);
 
+    if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
+        scriptOutputAlloc->copy1DTo(wBuffer.bits);
+        ANativeWindow_unlockAndPost(window);
+    }
+
+}
+
+void FrameRenderer::processIntrinsic_DISCARD(CaptureBuffer* inBuffer, ANativeWindow* window) {
+
+    inputAlloc->copy1DFrom(inBuffer->start);
+    intrinsic->forEach(intrinsOutAlloc);
+
+    // Strip the first frame (even or odd depending of the frame element index)
+    script->set_offset(firstFrameElementIndex);
+    script->forEach_stripField(pixelAlloc);
+
+    ANativeWindow_Buffer wBuffer;
     if (ANativeWindow_lock(window, &wBuffer, NULL) == 0) {
         scriptOutputAlloc->copy1DTo(wBuffer.bits);
         ANativeWindow_unlockAndPost(window);

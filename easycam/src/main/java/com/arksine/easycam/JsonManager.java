@@ -149,6 +149,7 @@ public class JsonManager {
 
 		JSONObject ndev = new JSONObject();
 		try {
+			ndev.put("description", newDevice.getDescription());
 			ndev.put("driver", newDevice.getDriver());
 			ndev.put("usb_vendor_id", newDevice.getVendorID());
 			ndev.put("usb_product_id", newDevice.getProductID());
@@ -205,6 +206,7 @@ public class JsonManager {
 			
 			// Replace the current values in the JSON Array with values from the currently
 			// selected device.
+			curJsonObj.put("description", currentDevice.getDescription());
 			curJsonObj.put("driver", currentDevice.getDriver());
 			curJsonObj.put("usb_vendor_id", currentDevice.getVendorID());
 			curJsonObj.put("usb_product_id", currentDevice.getProductID());
@@ -368,6 +370,7 @@ public class JsonManager {
 
 		DeviceInfo curDevice = new DeviceInfo();
 
+		curDevice.setDescription(curJsonObj.getString("description"));
 		curDevice.setDriver(curJsonObj.getString("driver"));
 		curDevice.setVendorID(curJsonObj.getString("usb_vendor_id"));
 		curDevice.setProductID(curJsonObj.getString("usb_product_id"));

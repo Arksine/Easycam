@@ -81,6 +81,7 @@ public class DeviceInfo {
 		}
 	};
 
+	private String description = "default";
 	private String driver = "default";
 	private String vendorID = "0000";
 	private String productID = "0000";
@@ -97,8 +98,10 @@ public class DeviceInfo {
 	// Empty Constructor for Objects needing initial values
 	DeviceInfo() {}
 
-	DeviceInfo(String drv, String vID, String pID, String loc, int fWidth, int fHeight, int bufs,
-	           int ipt, DeviceStandard std, PixelFormat fmt, FieldType fld, DeintMethod deint){
+	DeviceInfo(String desc, String drv, String vID, String pID, String loc, int fWidth, int fHeight,
+			   int bufs, int ipt, DeviceStandard std, PixelFormat fmt, FieldType fld,
+			   DeintMethod deint){
+		description = desc;
 		driver = drv;
 		vendorID = vID;
 		productID = pID;
@@ -113,12 +116,28 @@ public class DeviceInfo {
 		deinterlace = deint;
 	}
 
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
 	public String getDriver() {
 		return driver;
 	}
 
 	public void setDriver(String driver) {
 		this.driver = driver;
+	}
+
+	public String getLocation() {
+		return location;
+	}
+
+	public void setLocation(String location) {
+		this.location = location;
 	}
 
 	public String getProductID() {
@@ -135,14 +154,6 @@ public class DeviceInfo {
 
 	public void setVendorID(String vendorID) {
 		this.vendorID = vendorID;
-	}
-
-	public String getLocation() {
-		return location;
-	}
-
-	public void setLocation(String location) {
-		this.location = location;
 	}
 
 	public int getFrameWidth() {

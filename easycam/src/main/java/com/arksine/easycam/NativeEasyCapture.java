@@ -97,16 +97,17 @@ public class NativeEasyCapture implements EasyCapture {
         // Split the string into two parts.  The first part is the usb device name, the second is the driver name
         String[] devDesc = prefSelectDevice.split(":");
 
-        if (devDesc.length < 2) {
+        if (devDesc.length < 3) {
             Log.e(TAG, "Error parsing Device settings");
             // Device was not in devices.json, exit
             return false;
         }
 
-        currentDevice = JsonManager.getDevice(devDesc[1], std);
+        currentDevice = JsonManager.getDevice(Integer.parseInt(devDesc[1], 16),
+                Integer.parseInt(devDesc[2], 16), std);
 
         if (currentDevice == null) {
-	        Log.e(TAG, "Unable to find device " + devDesc[1] + " in devices.json");
+	        Log.e(TAG, "Unable to find device " + devDesc[0] + " in devices.json");
             // Device was not in devices.json, exit
             return false;
         }
@@ -115,11 +116,28 @@ public class NativeEasyCapture implements EasyCapture {
         // not stored in devices.json
         currentDevice.setDevStd(std);
 
+        // Check to see if the location is manually set in shared preferences.
+        boolean manualLocation = sharedPrefs.getBoolean("pref_key_manual_set_dev_loc", false);
+        if (manualLocation) {
+            String devLocation = sharedPrefs.getString("pref_select_dev_loc", "NO_DEVICE");
+            String name = findDevice(devLocation);
 
-        if (!setV4L2Location()) {
-            Log.e(TAG, "Unable to V4L2 driver for " + devDesc[1] + " @ " + devDesc[0]);
-            // Device was not in devices.json, exit
-            return false;
+            if (name.equals(currentDevice.getDriver())) {
+                currentDevice.setLocation(devLocation);
+            }
+            else {
+                Log.e(TAG, currentDevice.getDescription() + " not found at " + devLocation);
+                return false;
+            }
+
+        }
+        else {
+            // Attempt to autodetect location
+            if (!setV4L2Location()) {
+                Log.e(TAG, "Unable to V4L2 driver for " + devDesc[1] + " @ " + devDesc[0]);
+                // Device was not in devices.json, exit
+                return false;
+            }
         }
 
         String deintMethod = sharedPrefs.getString("pref_key_deinterlace_method", "NONE");
@@ -155,9 +173,9 @@ public class NativeEasyCapture implements EasyCapture {
         return startStreaming();
 	}
 
-    static public String findDevice(String dName)
+    static public String findDevice(String dLocation)
     {
-    	return detectDevice(dName);
+    	return detectDevice(dLocation);
     }
 
     private boolean setV4L2Location () {
@@ -176,13 +194,6 @@ public class NativeEasyCapture implements EasyCapture {
             File test = new File(devLocation);
             if (test.exists()) {
 
-                // TODO: 3/24/2016
-                // 		 right now the JNI function findDevice takes a location (file name) and returns
-                //       the the driver name if the device is valid.  It would be better
-                //		 for it to take bus info from the USB device and match it with
-                //       what we have here.  Its possible that we have multiple V4l2 device
-                //       that use the same driver, and the current implementation always
-                //       selects the first one found.
                 driver = detectDevice(devLocation);
 
                 if (driver.equals(currentDevice.getDriver())) {

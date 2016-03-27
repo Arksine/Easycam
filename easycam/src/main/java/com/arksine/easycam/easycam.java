@@ -35,20 +35,21 @@ public class easycam extends Activity {
     SurfaceHolder mHolder;
     FrameLayout currentLayout;
 
-    boolean leanBackOn = true;
+    boolean immersive = true;
     boolean isFullScreen = true;
     boolean useToasts = true;
 
     Handler mHandler = new Handler();
-    Runnable leanBackMsg = new Runnable() {
+    Runnable immersiveMsg = new Runnable() {
         @Override
         public void run() {
-            camView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN);
+                camView.setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_FULLSCREEN);
+
         }
     };
 
@@ -62,12 +63,6 @@ public class easycam extends Activity {
     private static final String ACTION_USB_PERMISSION = "com.arksine.easycam.USB_PERMISSION";
     private PendingIntent mPermissionIntent;
 
-    /**
-     * TODO: 3/26/2016
-     * the broadcastreciever is causing a deadlock.  Need to move it again.
-     * Its order of execution is really screwing up things, as it doesn't execute until the user
-     * returns input.
-     */
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
 
         public void onReceive(Context context, Intent intent) {
@@ -80,6 +75,19 @@ public class easycam extends Activity {
 
                         if(uDevice != null) {
                             initView();
+
+                            // Right now the activity doesn't have focus, so if we need to manually
+                            // set immersive mode.
+                            if (immersive) {
+                                camView.setSystemUiVisibility(
+                                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                                | View.SYSTEM_UI_FLAG_FULLSCREEN);
+
+                                currentLayout.post(setAspectRatio);
+                            }
                         }
                         else {
                             Log.d(TAG, "USB Device not valid");
@@ -119,8 +127,6 @@ public class easycam extends Activity {
 	    // Move devices.json to writeable data if this is the first time the app has been run
 	    if (firstrun) {
 		    try {
-                // TODO:  Should I change the Input and Output streams both in the below function
-                //        and in the JsonManager class to open File types rather than strings?
 			    copyJsonFile(jsonPath);
 		    } catch (Exception e) {
 			    Log.e(TAG, "Unable to copy devices.json");
@@ -134,7 +140,7 @@ public class easycam extends Activity {
 		    if (!JsonManager.initialize())
 			    return;
 	    }
-        
+
 		// Launch a dialog on first run to select the TV standard.  Some devices
 	    // have issues with the incorrect standard and do not return an error
 	    // when doing so.
@@ -145,7 +151,7 @@ public class easycam extends Activity {
 
         currentLayout = (FrameLayout) findViewById(R.id.mainLayout);
 
-        leanBackOn = sharedPrefs.getBoolean("pref_key_layout_leanback", true);
+        immersive = sharedPrefs.getBoolean("pref_key_layout_immersive", true);
         isFullScreen = sharedPrefs.getBoolean("pref_key_layout_fullscreen", true);
         useToasts = sharedPrefs.getBoolean("pref_key_layout_toasts", true);
 
@@ -196,16 +202,16 @@ public class easycam extends Activity {
 
         currentLayout.addView(camView);
 
-
         camView.setOnSystemUiVisibilityChangeListener
                 (new View.OnSystemUiVisibilityChangeListener() {
                     @Override
                     public void onSystemUiVisibilityChange(int visibility) {
                         if ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
 
-                            // go into lean back mode after 3 seconds
-                            if(leanBackOn) {
-                                mHandler.postDelayed(leanBackMsg, 3000);
+                            // The screen has been touched and the system bars are now visible.
+                            // If immersive is set to true, hide system bars after 3 seconds
+                            if(immersive) {
+                                mHandler.postDelayed(immersiveMsg, 3000);
                             }
                         }
                     }
@@ -269,8 +275,7 @@ public class easycam extends Activity {
         if (camView == null) {
             return;
         }
-
-        if(leanBackOn) {
+        if (immersive) {
             if (hasFocus) {
                 camView.setSystemUiVisibility(
                         View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -278,15 +283,17 @@ public class easycam extends Activity {
                                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                                 | View.SYSTEM_UI_FLAG_FULLSCREEN);
-            } else {
+            }
+            else {
                 // no need to have this in the queue if we lost focus
-                mHandler.removeCallbacks(leanBackMsg);
+                mHandler.removeCallbacks(immersiveMsg);
             }
         }
 
         if (hasFocus) {
             currentLayout.post(setAspectRatio);
         }
+
     }
 
     @Override

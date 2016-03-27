@@ -99,10 +99,6 @@ JNIEXPORT void JNICALL Java_com_arksine_easycam_NativeEasyCapture_stopDevice(JNI
 	}
 }
 
-// TODO: 3/24/2016
-// Need to change this function to take bus info and a device location.  The detect function
-// Will then compare the bus info with the info return from V4l2, and return true of they match,
-// false if they don't match.  I just need to figure out what the bus info outputs.
 JNIEXPORT jstring JNICALL Java_com_arksine_easycam_NativeEasyCapture_detectDevice(JNIEnv* jenv, jclass thisClazz,
                                                                                   jstring deviceLocation)
 {

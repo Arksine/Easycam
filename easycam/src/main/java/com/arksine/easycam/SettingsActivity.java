@@ -5,6 +5,7 @@ import android.content.Context;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
+import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
@@ -14,12 +15,6 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-
-/**
- * TODO: 3/24/2016
- * Need to move requestpermission to the easycamview class.  Otherwise the application will
- * attempt to acesss the device without permission when its launched without entering settings
- */
 
 /**
  * TODO:  Create a fragment to Add and Edit entries in the devices.json file.
@@ -62,6 +57,7 @@ public class SettingsActivity extends Activity {
 	        ListPreference selectDevice = (ListPreference) root.findPreference("pref_key_select_device");
 	        ListPreference selectStandard = (ListPreference) root.findPreference("pref_key_select_standard");
 	        ListPreference selectDeint = (ListPreference) root.findPreference("pref_key_deinterlace_method");
+			EditTextPreference selectDevLoc = (EditTextPreference) root.findPreference("pref_select_dev_loc");
 
 			ArrayList<DeviceEntry> validStreamingDeviceList = enumerateUsbDevices();
 			populateDeviceListPreference(validStreamingDeviceList, selectDevice);
@@ -70,6 +66,7 @@ public class SettingsActivity extends Activity {
 			selectDevice.setSummary(selectDevice.getEntry());
 			selectStandard.setSummary(selectStandard.getEntry());
 			selectDeint.setSummary(selectDeint.getEntry());
+			selectDevLoc.setSummary(selectDevLoc.getText());
 
 	        /**
 	         * Below are listeners for each of our device settings that update the summary based on the
@@ -83,7 +80,6 @@ public class SettingsActivity extends Activity {
 			        CharSequence[] entries = list.getEntries();
 			        int index = list.findIndexOfValue((String)newValue);
 					preference.setSummary(entries[index]);
-
 
 			        return true;
 		        }
@@ -112,6 +108,13 @@ public class SettingsActivity extends Activity {
 			        return true;
 		        }
 	        });
+			selectDevLoc.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+				@Override
+				public boolean onPreferenceChange(Preference preference, Object newValue) {
+					preference.setSummary((String)newValue);
+					return true;
+				}
+			});
 
         }
 
@@ -149,13 +152,6 @@ public class SettingsActivity extends Activity {
 			selectDevice.setEntries(entries);
 			selectDevice.setEntryValues(entryValues);
 	    }
-
-	    /**
-	     * checkV4L2Device - Checks the system for V4L2 compatible video streaming devices, then
-	     *                    checks to see if that device has stored default settings in the
-	     *                    devices.json file.
-	     *
-	     */
 
 		private ArrayList<DeviceEntry> enumerateUsbDevices() {
 
@@ -196,10 +192,9 @@ public class SettingsActivity extends Activity {
 
 						DeviceEntry devEntry = new DeviceEntry();
 
-						// TODO: Rather than use the driver as a discriptor, I should add a field
-						// to the devices.json file with the devices lsusb name (ie UTV007 for usbtv)
-						devEntry.deviceDescription = devInfo.getDriver() + " @ " + uDevice.getDeviceName();
-						devEntry.deviceName = uDevice.getDeviceName() + ":" + devInfo.getDriver();
+						devEntry.deviceDescription = devInfo.getDescription() + " @ " + uDevice.getDeviceName();
+						devEntry.deviceName = uDevice.getDeviceName() + ":" + devInfo.getVendorID()
+								+ ":" + devInfo.getProductID();
 
 						validStreamingDeviceList.add(devEntry);
 

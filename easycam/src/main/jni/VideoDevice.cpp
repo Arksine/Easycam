@@ -380,11 +380,6 @@ char* VideoDevice::detectDevice(const char* devLocation) {
 		return strdup("NO_DEVICE");
 	}
 
-    // TODO: 3/24/2016
-    // None of the capability variables give relevant information about the device hardware
-    // Check the V4L2 API to see if there is another query we can make that gives the information
-    // I am looking for (such as the usb bus location)
-
 	LOGI("V4L2 driver found: %s", cap.driver);
 	LOGI("V4L2 device brand: %s", cap.card);
 	LOGI("V4L2 device bus info : %s", cap.bus_info);

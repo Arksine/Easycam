@@ -67,9 +67,14 @@
         <item>BOB</item>
         <!--<item>BLEND</item>  -->
     </string-array>
-
     <string name="pref_deinterlace_method_default">NONE</string>
     <string name="pref_deinterlace_method_summary">None</string>
+
+    <string name="pref_manual_set_dev_loc">Manually Select Device Location</string>
+    <string name="pref_manual_set_dev_loc_summ">Enable if device location is not auto detected</string>
+
+    <string name="pref_select_dev_loc">Select Device File</string>
+    <string name="pref_select_dev_loc_default">/dev/video</string>
 
     <string name="pref_request_usb_permission">Request USB Permssion</string>
     <string name="pref_request_usb_permission_summ">Select if SELinux is enforcing</string>
@@ -77,8 +82,8 @@
     <string name="pref_layout_settings_title">Layout Settings</string>
     <string name="pref_layout_fullscreen">Start in fullscreen mode</string>
     <string name="pref_layout_fullscreen_summ">Stretch image to fill the entire screen</string>
-    <string name="pref_layout_leanback">Immersive mode</string>
-    <string name="pref_layout_leanback_summ">Enable to hide action/navigation bars</string>
+    <string name="pref_layout_immersive">Immersive mode</string>
+    <string name="pref_layout_immersive_summ">Enable to hide action/navigation bars</string>
     <string name="pref_layout_toasts">Enable Toasts</string>
     <string name="pref_layout_toasts_summ">Disable to remove info popups</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>

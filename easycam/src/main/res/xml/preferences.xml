@@ -29,6 +29,15 @@
             android:persistent="true"
             android:defaultValue="@string/pref_deinterlace_method_default"/>
         <CheckBoxPreference
+            android:key="pref_key_manual_set_dev_loc"
+            android:title="@string/pref_manual_set_dev_loc"
+            android:defaultValue="false" />
+        <EditTextPreference
+            android:dependency="pref_key_manual_set_dev_loc"
+            android:key="pref_select_dev_loc"
+            android:title="@string/pref_select_dev_loc"
+            android:defaultValue="@string/pref_select_dev_loc_default"/>
+        <CheckBoxPreference
             android:key="pref_key_request_usb_permission"
             android:title="@string/pref_request_usb_permission"
             android:summary="@string/pref_request_usb_permission_summ"
@@ -46,9 +55,9 @@
             android:persistent="true"
             android:defaultValue="true" />
         <CheckBoxPreference
-            android:key="pref_key_layout_leanback"
-            android:title="@string/pref_layout_leanback"
-            android:summary="@string/pref_layout_leanback_summ"
+            android:key="pref_key_layout_immersive"
+            android:title="@string/pref_layout_immersive"
+            android:summary="@string/pref_layout_immersive_summ"
             android:persistent="true"
             android:defaultValue="true" />
         <CheckBoxPreference

@@ -27,8 +27,6 @@ typedef struct {
 
 enum Deinterlace {NONE, DISCARD, BOB, BLEND};
 
-// TODO: 3/22/2016
-// Need to change the char* types below to strings
 typedef struct {
 	char* driver;
 	char* location;  		// location of the device file (/dev/videoX)
