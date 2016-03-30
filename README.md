@@ -1,7 +1,7 @@
 Easycam - Easycap viewer for android
 =======
 
-Easycam was created as an alternative to Carcam, an app used for displaying a backup camera in automotive installs. Easycam was built and tested on a Nexus 7 (2012) running Autodroid 1.2.   Much of Easycam is based on the excellent android-webcam library developed by the OpenXC project.  I'd like to thank OpenXC and Ford Motor Company for releasing such a great piece of open software.  Easycam uses Google's libyuv for color conversion.
+Easycam was created as an alternative to Carcam, an app used for displaying a backup camera in automotive installs. Easycam was built and tested on a Nexus 7 (2012) running Autodroid 1.2.   Much of Easycam is based on the excellent android-webcam library developed by the OpenXC project.  I'd like to thank OpenXC and Ford Motor Company for releasing such a great piece of open software.
 
 Supported Devices
 ========
@@ -25,7 +25,7 @@ After testing I WAS able to get the Easycap002 to run, but I cannot recommend it
 Running the app
 ========
 
-On first run the settings activity will show.  Make absolutely sure you set your TV Standard (region) correctly here. The app will attempt to autodetect the type of device you have and the location of the device file (ie. /dev/video0). This functionality can be toggled in the settings where you can manually enter these options, but it is not recommended to do so unless you have multiple Easycap devices hooked up to your tablet.  There are also various visual settings included, which are self explanatory.
+On first run the settings activity will show.  Make absolutely sure you set your TV Standard (region) correctly here. The app will attempt to autodetect the type of device you have and the location of the device file (ie. /dev/video0). The location option may be toggled for manual entry if you have multiple Easycap devices hooked up to your tablet.  There are also various visual settings included, which are self explanatory.
 
 Unlike Carcam, there is no background service that attempts to detect a signal and launch the app.  That functionality never worked well for me, as it seemed to cause stability issues rather than function as it should.  In my opinion a better way to get this functionality would be to use an Arduino to detect voltage on the reverse wire.  Obviously there would be a lot of work to get it working (step down 12v to 5v, protect from voltage spikes, an app to communicate between the Arduino and the tablet), but it
 would be much more reliable than having a background loop continuously putting a drain
@@ -34,8 +34,13 @@ on your tablet's resources, having to deal with deep sleep, etc.
 Building Easycam
 ========
 
-Easycam was built using Android Studio 1.5.1 and targets a minimum of Android API 19, with NDK r10e.
+Easycam was built using Android Studio 2.0 beta7 and targets a minimum of Android API 19, with NDK r10e.
+
+Note:  If you are having trouble building on windows, it is likely due to a compatibility issue with
+llvm-rs-cc.exe in the NDK.  This can be resolved by navigating to
+<NDKDIR>\toolchains\renderscript\prebuilt\windows-x86_64\bin, right clicking on llvm-rs-cc.exe and
+changing the compatibility mode to Windows 7 or Windows XP SP3.  
 
 License
 =======
-Copyright (c) 2014-2015 Eric Callahan licensed under the BSD license.
+Copyright (c) 2014-2016 Eric Callahan licensed under the BSD license.
