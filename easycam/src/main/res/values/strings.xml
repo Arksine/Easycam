@@ -76,7 +76,7 @@
     <string name="pref_select_dev_loc">Select Device File</string>
     <string name="pref_select_dev_loc_default">/dev/video</string>
 
-    <string name="pref_request_usb_permission">Request USB Permssion</string>
+    <string name="pref_request_usb_permission">Request USB Permission</string>
     <string name="pref_request_usb_permission_summ">Select if SELinux is enforcing</string>
 
     <string name="pref_layout_settings_title">Layout Settings</string>
