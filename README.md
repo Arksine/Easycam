@@ -39,7 +39,7 @@ Easycam was built using Android Studio 2.0 beta7 and targets a minimum of Androi
 Note:  If you are having trouble building on windows, it is likely due to a compatibility issue with
 llvm-rs-cc.exe in the NDK.  This can be resolved by navigating to
 <NDKDIR>\toolchains\renderscript\prebuilt\windows-x86_64\bin, right clicking on llvm-rs-cc.exe and
-changing the compatibility mode to Windows 7 or Windows XP SP3.  
+changing the compatibility mode to Windows 7 or Windows XP SP3.
 
 License
 =======
