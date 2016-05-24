@@ -10,7 +10,7 @@ FAQ
 A: The developers for the Easycap Viewer app created their own UTV007 Android user space driver.  Easycam makes use of existing kernel space drivers written for linux. You are getting an error either because your kernel doesn't have the driver, or SELinux is blocking.
 
 **Q: Will you create a user space driver for easycam?**  
-A: I haven't ruled it out for the future, but it won't be anytime soon.  Even though the hard work of reversing the windows drivers has already been done, porting a driver to user space isn't trivial.  It would also require a major rewrite of easycam, because all of the rendering is currently done in native code, whereas it would be more efficient to do everything in managed code when using a user space driver.  For those looking for this functionality I recommend just forking out the $5 for Easycap Viewer.
+A: I haven't ruled it out for the future, but it won't be anytime soon.  Even though the hard work of reversing the windows drivers has already been done, porting a driver to user space isn't trivial.  It would also require a major rewrite of easycam, because all of the rendering is currently done in native code, whereas it would be more efficient to do everything in managed code when using a user space driver.  
 
 **Q: How do I add the driver to my kernel?**  
 A: If you are fortunate you can find a rom or kernel for your device that already has the easycap drivers built in. Otherwise you will have to build the driver yourself.  You have the option of compiling the driver directly into the kernel or building the driver as a module  Google "compiling a kernel module for android" and "compiling an android kernel" to get yourself started.  
