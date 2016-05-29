@@ -134,7 +134,7 @@ public class NativeEasyCapture implements EasyCapture {
         else {
             // Attempt to autodetect location
             if (!setV4L2Location()) {
-                Log.e(TAG, "Unable to V4L2 driver for " + devDesc[1] + " @ " + devDesc[0]);
+                Log.e(TAG, "Unable to load V4L2 driver for " + devDesc[1] + " @ " + devDesc[0]);
                 // Device was not in devices.json, exit
                 return false;
             }
