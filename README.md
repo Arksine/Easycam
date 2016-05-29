@@ -1,7 +1,22 @@
-Easycam - Easycap viewer for android
+Easycam - Easycap monitor for android
 =======
 
-Easycam was created as an alternative to Carcam, an app used for displaying a backup camera in automotive installs. Easycam was built and tested on a Nexus 7 (2012) running Autodroid 1.2.   Much of Easycam is based on the excellent android-webcam library developed by the OpenXC project.  I'd like to thank OpenXC and Ford Motor Company for releasing such a great piece of open software.
+Easycam was created as an alternative to Carcam, an app used for displaying a backup camera in automotive installs. Easycam was built and tested on a Nexus 7 (2012) running Autodroid 1.2.   Initially Easycam's v4l2 functionality was based on the android-webcam library developed by the OpenXC project.  
+
+
+FAQ
+=======
+**Q: Easycap viewer on the play store works with my UTV007 device, so why do I get an error message when using easycam?**  
+A: The developers for the Easycap Viewer app created their own UTV007 Android user space driver.  Easycam makes use of existing kernel space drivers written for linux. You are getting an error either because your kernel doesn't have the driver, or SELinux is blocking.
+
+**Q: Will you create a user space driver for easycam?**  
+A: I haven't ruled it out for the future, but it won't be anytime soon.  Even though the hard work of reversing the windows drivers has already been done, porting a driver to user space isn't trivial.  It would also require a major rewrite of easycam, because all of the rendering is currently done in native code, whereas it would be more efficient to do everything in managed code when using a user space driver.  
+
+**Q: How do I add the driver to my kernel?**  
+A: If you are fortunate you can find a rom or kernel for your device that already has the easycap drivers built in. Otherwise you will have to build the driver yourself.  You have the option of compiling the driver directly into the kernel or building the driver as a module  Google "compiling a kernel module for android" and "compiling an android kernel" to get yourself started.  
+
+**Q: My attempt to build easycam results in an ndk error, what is going wrong?**  
+A: First, you need NDK r10e.  No other version is supported for this app, although older versions (r10d or r10c) may work.  NDK 11 left out support for renderscript, which easycam requires.  Next, if you are using Windows 8 or above, there is an issue with the file "llvm-rs-cc.exe".   You need to navigate to the file in your NDK folder and change its compatibility to Windows 7 or Windows XP SP3.
 
 Supported Devices
 ========
