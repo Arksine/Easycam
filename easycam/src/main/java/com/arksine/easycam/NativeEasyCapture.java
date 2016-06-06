@@ -8,6 +8,7 @@ import android.util.Log;
 import android.view.Surface;
 import android.widget.Toast;
 
+@SuppressWarnings("JniMissingFunction")
 public class NativeEasyCapture implements EasyCapture {
 
 	
@@ -15,9 +16,8 @@ public class NativeEasyCapture implements EasyCapture {
     private DeviceInfo currentDevice;
     boolean deviceConnected = false;
 
-
     private native boolean startDevice(String cacheDir, DeviceInfo dInfo);
-	private native boolean startStreaming();
+    private native boolean startStreaming();
     private native void getNextFrame(Surface mySurface);
     private native boolean isDeviceAttached();
     private native void stopDevice();
